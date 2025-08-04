@@ -1,0 +1,76 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+main {
+  height: 100%;
+  width: 100%;
+  padding: 1.5rem;
+  display: flex;
+  gap: 1rem;
+}
+
+main > .left,
+main > .right {
+  height: 100%;
+  flex-basis: 50%;
+  border-radius: 0.7rem;
+}
+
+/* === LEFT PANEL: CODE VIEW === */
+.left {
+  background-color: black;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.code {
+  flex: 1;
+  overflow: auto;
+  padding: 1rem;
+  color: white;
+  font-family: monospace;
+}
+
+.code pre,
+.code pre code {
+  min-height: 100%;
+  width: 100%;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.review {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  background-color: rgb(217, 217, 252);
+  color: black;
+  padding: 0.5rem 2rem;
+  border-radius: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* === RIGHT PANEL: REVIEW FEEDBACK === */
+.right {
+  background-color: #fef9c3; /* light yellow */
+  color: #111;               /* strong contrast */
+  padding: 1.5rem 2rem;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  font-family: system-ui, sans-serif;
+  overflow:auto;
+}
+
