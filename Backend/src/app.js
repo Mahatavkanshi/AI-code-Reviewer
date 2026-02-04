@@ -1,15 +1,22 @@
-const express = require('express');
-const aiRoutes = require('./routes/ai.routes')
+const express = require('express')
 const cors = require('cors')
- const app = express()
+const aiRoutes = require('./routes/ai.routes')
+const authRoutes = require('./routes/auth.routes') // import the auth route
 
- app.use(cors())
- app.use(express.json())
+const app = express()
 
+app.use(cors())
+app.use(express.json())
 
-app.get('/', (req,res) => {
-res.send('hello world')
+// Test route
+app.get('/', (req, res) => {
+    res.send('hello world')
 })
 
-app.use('/ai',aiRoutes)
- module.exports = app
+// Mount AI route
+app.use('/ai', aiRoutes)
+
+// Mount Auth route
+app.use('/auth', authRoutes) // <--- added for login
+
+module.exports = app
