@@ -29,4 +29,35 @@ async function signup(username, email, password) {
     return { success: true, user: result.rows[0] }
 }
 
-module.exports = { signup }
+// Login function
+async function login(usernameOrEmail, password) {
+    // Find user by username OR email
+    const result = await pool.query(
+        'SELECT * FROM users WHERE username=$1 OR email=$1', [usernameOrEmail]
+    )
+
+    if (result.rows.length === 0) {
+        return { success: false, message: 'User not found' }
+    }
+
+    const user = result.rows[0]
+
+    // Compare password
+    const validPassword = await bcrypt.compare(password, user.password)
+    if (!validPassword) {
+        return { success: false, message: 'Incorrect password' }
+    }
+
+    // Login successful
+    return {
+        success: true,
+        user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            created_at: user.created_at
+        }
+    }
+}
+
+module.exports = { signup, login }
