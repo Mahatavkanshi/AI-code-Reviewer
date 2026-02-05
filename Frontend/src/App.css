@@ -1,76 +1,42 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-html,
-body,
 #root {
-  height: 100%;
-  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
 }
 
-main {
-  height: 100%;
-  width: 100%;
-  padding: 1.5rem;
-  display: flex;
-  gap: 1rem;
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
 }
 
-main > .left,
-main > .right {
-  height: 100%;
-  flex-basis: 50%;
-  border-radius: 0.7rem;
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-/* === LEFT PANEL: CODE VIEW === */
-.left {
-  background-color: black;
-  position: relative;
-  display: flex;
-  flex-direction: column;
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
 }
 
-.code {
-  flex: 1;
-  overflow: auto;
-  padding: 1rem;
-  color: white;
-  font-family: monospace;
+.card {
+  padding: 2em;
 }
 
-.code pre,
-.code pre code {
-  min-height: 100%;
-  width: 100%;
-  white-space: pre-wrap;
-  word-break: break-word;
+.read-the-docs {
+  color: #888;
 }
-
-.review {
-  position: absolute;
-  bottom: 1rem;
-  right: 1rem;
-  background-color: rgb(217, 217, 252);
-  color: black;
-  padding: 0.5rem 2rem;
-  border-radius: 0.7rem;
-  font-weight: 500;
-  cursor: pointer;
-  user-select: none;
-}
-
-/* === RIGHT PANEL: REVIEW FEEDBACK === */
-.right {
-  background-color: #fef9c3; /* light yellow */
-  color: #111;               /* strong contrast */
-  padding: 1.5rem 2rem;
-  font-size: 1.1rem;
-  line-height: 1.6;
-  font-family: system-ui, sans-serif;
-  overflow:auto;
-}
-
