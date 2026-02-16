@@ -1,10 +1,27 @@
 const pool = require('../../db')
 const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken')
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production'
+const JWT_EXPIRES_IN = '7d'
 
 // Hash password
 async function hashPassword(password) {
     const saltRounds = 10
     return await bcrypt.hash(password, saltRounds)
+}
+
+// Generate JWT token
+function generateToken(user) {
+    return jwt.sign(
+        { 
+            id: user.id, 
+            username: user.username, 
+            email: user.email 
+        },
+        JWT_SECRET,
+        { expiresIn: JWT_EXPIRES_IN }
+    )
 }
 
 // Signup function
@@ -48,9 +65,12 @@ async function login(usernameOrEmail, password) {
         return { success: false, message: 'Incorrect password' }
     }
 
-    // Login successful
+    // Login successful - generate token
+    const token = generateToken(user)
+    
     return {
         success: true,
+        token,
         user: {
             id: user.id,
             username: user.username,

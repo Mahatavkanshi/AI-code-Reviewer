@@ -3,6 +3,7 @@ const cors = require('cors')
 const aiRoutes = require('./routes/ai.routes')
 const authRoutes = require('./routes/auth.routes')
 const githubRoutes = require('./routes/github.routes')
+const reviewRoutes = require('./routes/review.routes')
 
 const app = express()
 
@@ -22,5 +23,8 @@ app.use('/auth', authRoutes)
 
 // Mount GitHub route
 app.use('/github', githubRoutes)
+
+// Mount Review route
+app.use('/reviews', reviewRoutes)
 
 module.exports = app

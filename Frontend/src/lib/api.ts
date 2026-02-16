@@ -91,6 +91,154 @@ export const aiAPI = {
   },
 };
 
+// Review History API calls
+interface SaveReviewData {
+  code_snippet: string;
+  language?: string;
+  ai_review: string;
+  improved_code?: string;
+  issues_count?: number;
+  suggestions_count?: number;
+}
+
+interface ReviewHistory {
+  id: number;
+  user_id: number;
+  code_snippet: string;
+  language?: string;
+  ai_review: string;
+  improved_code?: string;
+  issues_count: number;
+  suggestions_count: number;
+  fix_applied: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export const reviewAPI = {
+  // Save a review to history
+  saveReview: async (data: SaveReviewData, token: string): Promise<{ success: boolean; review: ReviewHistory }> => {
+    const response = await fetch(`${API_BASE_URL}/reviews/save`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to save review');
+    }
+
+    return response.json();
+  },
+
+  // Get user's review history
+  getHistory: async (token: string, limit: number = 50, offset: number = 0): Promise<{ 
+    success: boolean; 
+    reviews: ReviewHistory[]; 
+    total: number;
+    limit: number;
+    offset: number;
+  }> => {
+    const response = await fetch(`${API_BASE_URL}/reviews/history?limit=${limit}&offset=${offset}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch review history');
+    }
+
+    return response.json();
+  },
+
+  // Get single review by ID
+  getReviewById: async (id: number, token: string): Promise<{ success: boolean; review: ReviewHistory }> => {
+    const response = await fetch(`${API_BASE_URL}/reviews/${id}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch review');
+    }
+
+    return response.json();
+  },
+
+  // Update review (e.g., mark fix as applied)
+  updateReview: async (id: number, data: { fix_applied: boolean }, token: string): Promise<{ 
+    success: boolean; 
+    review: ReviewHistory 
+  }> => {
+    const response = await fetch(`${API_BASE_URL}/reviews/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to update review');
+    }
+
+    return response.json();
+  },
+
+  // Delete review
+  deleteReview: async (id: number, token: string): Promise<{ success: boolean; message: string }> => {
+    const response = await fetch(`${API_BASE_URL}/reviews/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to delete review');
+    }
+
+    return response.json();
+  },
+
+  // Get review statistics
+  getStats: async (token: string): Promise<{ 
+    success: boolean; 
+    stats: {
+      total_reviews: number;
+      fixes_applied: number;
+      total_issues: number;
+      total_suggestions: number;
+      today_reviews: number;
+      languages: { language: string; count: number }[];
+    }
+  }> => {
+    const response = await fetch(`${API_BASE_URL}/reviews/stats`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch statistics');
+    }
+
+    return response.json();
+  },
+};
+
 // GitHub API calls
 export const githubAPI = {
   // Get GitHub OAuth URL

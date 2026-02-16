@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { aiAPI } from "@/lib/api"
+import { aiAPI, reviewAPI } from "@/lib/api"
 import { useNavigate } from "react-router-dom"
 import { useTheme } from "@/components/theme-provider"
 import { CodeDiff } from "@/components/CodeDiff"
@@ -32,6 +32,7 @@ import {
   Monitor,
   Image as ImageIcon
 } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -119,44 +120,411 @@ const LANGUAGES = [
   { value: "regex", label: "🔍 Regex", icon: "🔍" },
 ]
 
-// Language detection patterns
-const LANGUAGE_PATTERNS: { [key: string]: RegExp[] } = {
-  javascript: [/\b(const|let|var|function|=>|console\.log)\b/, /\b(document|window|fetch|async|await)\b/],
-  typescript: [/\b(interface|type|enum|namespace|declare)\b/, /:\s*(string|number|boolean|any)\b/],
-  python: [/\b(def|class|import|from|if __name__ == ['"]__main__['"])\b/, /:\s*\n\s+/m],
-  java: [/\b(public|private|protected|class|void|static)\s+\w+\s*\(/, /\b(System\.out\.println|public\s+static\s+void\s+main)\b/],
-  cpp: [/\b(#include|using\s+namespace|cout|cin)\b/, /\b(int|void|char|double|float)\s+\w+\s*\(/],
-  c: [/\b(#include|printf|scanf|malloc|free)\b/, /\b(int|void|char)\s+\w+\s*\([^)]*\)\s*\{/],
-  csharp: [/\b(using\s+System|namespace|public\s+class|Console\.WriteLine)\b/, /\b(string|int|bool)\s+\w+\s*\{/],
-  go: [/\b(package|func|import|fmt\.Println)\b/, /\b(func\s+\w+\s*\([^)]*\)\s*\w*\s*\{)/],
-  rust: [/\b(fn|let\s+mut|use|impl|pub|struct|enum)\b/, /\b(Result|Option|Vec|String)\b/],
-  php: [/\b(<\?php|\$\w+|echo|function)\b/, /\b(\$_GET|\$_POST|\$_SERVER)\b/],
-  ruby: [/\b(def|end|puts|require|ruby)\b/, /\b(\w+:\s*.+|do\s*\|[^|]+\|)/],
-  swift: [/\b(import|func|var|let|class|struct)\b/, /\b(print|UIKit|Foundation|SwiftUI)\b/],
-  kotlin: [/\b(fun|val|var|class|object|interface)\b/, /\b(println|companion\s+object)\b/],
-  html: [/<!DOCTYPE\s+html>|<html>|<head>|<body>/i, /<\w+[^>]*>/],
-  css: [/\b([.#]\w+\s*\{|:hover|:active|@media)\b/, /\b(color|background|margin|padding|display)\s*:/],
-  sql: [/\b(SELECT|INSERT|UPDATE|DELETE|CREATE|TABLE|FROM|WHERE|JOIN)\b/i],
-  bash: [/#!\/bin\/bash|#!\/bin\/sh/, /\b(echo|if|then|fi|for|do|done)\b/],
-  json: [/^[\s]*\{[\s]*"/, /^[\s]*\[[\s]*"/],
-  yaml: [/^\w+:\s*\n|^\s+-\s+\w+:/m, /\b(apiVersion|kind|metadata|spec)\b/],
-  markdown: [/^#{1,6}\s+/, /\*\*|__|\[.*?\]\(.*?\)/],
+// Language detection with scoring system for better accuracy
+interface LanguagePattern {
+  patterns: RegExp[];
+  weight: number; // Higher weight = more specific/confident
+  required?: RegExp[]; // Must match at least one of these
 }
 
-// Detect language from code
+const LANGUAGE_PATTERNS: { [key: string]: LanguagePattern } = {
+  // Go - very high confidence patterns
+  go: {
+    patterns: [
+      /^package\s+\w+/m,                              // package declaration
+      /^func\s+\w+\s*\(/m,                           // function declaration  
+      /^import\s+\(|^import\s+"\w+/m,               // import statement
+      /\bfmt\.Println\b/,                            // fmt.Println
+      /:=\s*("[^"]*"|\d+|true|false)/,              // short variable declaration
+      /\bvar\s+\w+\s+(string|int|bool|float64|int32|int64|uint)\b/, // typed var
+      /\bchan\s+|\bmake\s*\(\s*chan\b/,             // channels
+      /\bgo\s+\w+\s*\(/,                            // goroutine
+      /\bstruct\s*\{|\binterface\s*\{/,             // struct/interface
+    ],
+    weight: 10,
+    required: [/^package\s+\w+/m, /^func\s+\w+\s*\(/m, /^import\s+\(/m]
+  },
+  
+  // Rust - high confidence
+  rust: {
+    patterns: [
+      /\bfn\s+\w+\s*\(/,                             // function
+      /\blet\s+mut\b/,                               // mutable let
+      /\bimpl\s+\w+|\bimpl\s+\w+\s+for\s+\w+/,      // implementation
+      /\bstruct\s+\w+|\benum\s+\w+/,                // struct/enum
+      /\bmatch\s+\w+\s*\{/,                          // match expression
+      /\bResult<|Option<|Vec<|String\b/,             // Rust types
+      /\bprintln!\b/,                                // println macro
+      /\buse\s+\w+::|#\[\w+\(\w+\)\]/,              // use statement/attribute
+      /&mut\s+\w+|&\w+/,                             // references
+    ],
+    weight: 9,
+    required: [/\bfn\s+\w+|\blet\s+mut\b/]
+  },
+  
+  // Java - high confidence
+  java: {
+    patterns: [
+      /\bpublic\s+class\s+\w+/,                      // public class
+      /\bpublic\s+static\s+void\s+main\s*\(/,       // main method
+      /\bSystem\.out\.println\b/,                    // print statement
+      /\bprivate\s+\w+\s+\w+\s*;|,\bprotected\s+/, // access modifiers
+      /\bextends\s+\w+|\bimplements\s+\w+/,        // inheritance
+      /\bimport\s+java\./,                          // Java imports
+      /@Override|@Deprecated|@SuppressWarnings/,    // annotations
+      /\bnew\s+\w+\s*\(\s*\)/,                      // object creation
+    ],
+    weight: 9,
+    required: [/\bpublic\s+class|System\.out\.println/]
+  },
+  
+  // C++ - high confidence
+  cpp: {
+    patterns: [
+      /#include\s*<\w+\.h>|#include\s*<\w+>/,        // includes
+      /\bstd::\w+|using\s+namespace\s+std/,         // std namespace
+      /\bcout\s*<<|cin\s*>>/,                       // iostream
+      /\bclass\s+\w+\s*\{[^}]*\bpublic:|\bprivate:|\bprotected:/, // class with access
+      /\bvector<|map<|string\b/,                     // STL containers
+      /\bnew\s+\w+\s*\[|delete\s*\w+/,              // dynamic memory
+      /\bconst\s+\w+&\s+\w+|\w+&\s+\w+\s*=/,      // references
+    ],
+    weight: 9,
+    required: [/#include\s*<|std::|cout\s*<</]
+  },
+  
+  // C - medium-high confidence
+  c: {
+    patterns: [
+      /#include\s*<\w+\.h>/,                         // includes with .h
+      /\bprintf\s*\(|\bscanf\s*\(/,                 // stdio functions
+      /\bmalloc\s*\(|\bfree\s*\(/,                 // memory management
+      /\bstruct\s+\w+\s*\{|\btypedef\s+struct/,    // structs
+      /\bint\s+main\s*\(\s*\)|\bvoid\s+main\s*\(/, // main function
+      /\bsizeof\s*\(/,                              // sizeof
+    ],
+    weight: 8,
+    required: [/#include\s*<\w+\.h>/, /\bprintf\s*\(/]
+  },
+  
+  // C# - high confidence
+  csharp: {
+    patterns: [
+      /\busing\s+System/,                            // using System
+      /\bnamespace\s+\w+/,                          // namespace
+      /\bpublic\s+class\s+\w+/,                     // public class
+      /\bConsole\.WriteLine\b/,                      // Console output
+      /\bstring\s+\w+\s*=\s*"/,                     // string assignment
+      /\bvar\s+\w+\s*=\s*new\s+/,                   // var with new
+      /\[\w+\(\s*"[^"]*"\s*\)\]/,                    // attributes
+      /\basync\s+Task|await\s+\w+/,                 // async/await
+    ],
+    weight: 9,
+    required: [/\busing\s+System/, /\bnamespace\s+\w+/]
+  },
+  
+  // Python - high confidence
+  python: {
+    patterns: [
+      /\bdef\s+\w+\s*\([^)]*\)\s*:/,               // function definition
+      /\bclass\s+\w+\s*\([^)]*\)?\s*:/,           // class definition
+      /if\s+__name__\s*==\s*['"]__main__['"]\s*:/, // main guard
+      /\bimport\s+\w+|\bfrom\s+\w+\s+import/,     // imports
+      /:\s*\n\s+(pass|return|if|for|while|print)/m, // indentation
+      /\bprint\s*\([^)]*\)/,                        // print function
+      /\blist\s*\(|\bdict\s*\(|\btuple\s*\(/,      // built-in types
+      /\bself\./,                                   // self reference
+    ],
+    weight: 9,
+    required: [/\bdef\s+\w+|:\s*\n\s+/m]
+  },
+  
+  // TypeScript - medium-high confidence
+  typescript: {
+    patterns: [
+      /\binterface\s+\w+\s*\{/,                     // interface
+      /\btype\s+\w+\s*=\s*(\{|\[)/,                // type alias
+      /:\s*(string|number|boolean|any|void|unknown|never)\b/, // TypeScript types
+      /\benum\s+\w+\s*\{/,                         // enum
+      /\bnamespace\s+\w+/,                        // namespace
+      /\bdeclare\s+(module|var|let|const)/,        // declare
+      /\w+\?:\s*\w+/,                              // optional property
+      /as\s+\w+|\breadonly\s+/,                    // type assertions/readonly
+    ],
+    weight: 8,
+    required: [/\binterface\s+\w+|\btype\s+\w+|\benum\s+\w+/]
+  },
+  
+  // JavaScript - lower confidence (many patterns overlap with other languages)
+  javascript: {
+    patterns: [
+      /\bconst\s+\w+\s*=\s*(\{|\[|require\s*\()/,   // const assignment
+      /\blet\s+\w+\s*=\s*(\{|\[|\d+|"|')/,         // let assignment
+      /\bconsole\.log\b/,                           // console.log
+      /\bdocument\.|window\.|fetch\s*\(/,           // DOM/Browser APIs
+      /\baddEventListener\s*\(|\bquerySelector/,    // DOM methods
+      /=>\s*\{|=>\s*\w+/,                           // arrow functions
+      /\basync\s+function|\bawait\s+/,             // async/await
+      /\bmodule\.exports|\brequire\s*\(/,          // CommonJS
+    ],
+    weight: 6,
+  },
+  
+  // PHP - high confidence
+  php: {
+    patterns: [
+      /<\?php/,                                     // PHP tag
+      /\$\w+\s*=\s*/,                               // variable
+      /\$_GET\[|$_POST\[|$_SERVER\[|$_SESSION\[/,   // superglobals
+      /\becho\s+["']|print\s+["']/,                // echo/print
+      /\bfunction\s+\w+\s*\([^)]*\$/,              // function with params
+      /\bclass\s+\w+\s*\{[^}]*\$this->/,          // class with this
+      /\bnamespace\s+\w+|\buse\s+\w+/,            // namespace/use
+    ],
+    weight: 9,
+    required: [/<\?php/, /\$_GET|$_POST/, /\$\w+/]
+  },
+  
+  // Ruby - high confidence
+  ruby: {
+    patterns: [
+      /\bdef\s+\w+\s*(\(|\n)/,                      // method definition
+      /\bend\s*\n/,                                 // end keyword
+      /\bputs\s+|\bprint\s+/,                       // output
+      /\brequire\s+['"]|\brequire_relative\s+/,    // require
+      /\bclass\s+\w+\s*(<\s*\w+)?\s*\n/,          // class inheritance
+      /\bmodule\s+\w+/,                            // module
+      /\bdo\s*\|[^|]+\|/,                          // block with params
+      /:\s*\w+\s+=>|(\w+):\s+/,                   // hash syntax
+      /@\w+\s*=\s*/,                               // instance variable
+    ],
+    weight: 8,
+    required: [/\bdef\s+\w+|\bend\s*\n/]
+  },
+  
+  // Swift - high confidence
+  swift: {
+    patterns: [
+      /\bimport\s+(UIKit|Foundation|SwiftUI)/,     // Apple frameworks
+      /\bfunc\s+\w+\s*\([^)]*\)\s*(->\s*\w+)?\s*\{/, // function
+      /\bvar\s+\w+\s*:\s*\w+|\blet\s+\w+\s*:/,   // typed variables
+      /\bclass\s+\w+\s*:\s*\w+|\bstruct\s+\w+/,  // class/struct
+      /\bprint\s*\([^)]*\)/,                        // print
+      /\bguard\s+let|\bif\s+let/,                   // optional binding
+      /\b@IBOutlet|@IBAction/,                      // Interface Builder
+    ],
+    weight: 9,
+    required: [/\bimport\s+(UIKit|Foundation)/, /\bfunc\s+\w+/]
+  },
+  
+  // Kotlin - high confidence
+  kotlin: {
+    patterns: [
+      /\bfun\s+\w+\s*\(/,                           // function
+      /\bval\s+\w+\s*:\s*\w+|\bvar\s+\w+\s*:/,   // typed variables
+      /\bclass\s+\w+\s*\([^)]*\)|\bdata\s+class/, // class/data class
+      /\bprintln\s*\(/,                             // println
+      /\bcompanion\s+object/,                       // companion object
+      /\boverride\s+fun/,                           // override
+      /\blateinit\s+var/,                           // lateinit
+      /\bwhen\s*\(/,                                // when expression
+    ],
+    weight: 9,
+    required: [/\bfun\s+\w+/, /\bval\s+\w+|\bvar\s+\w+/]
+  },
+  
+  // HTML - very high confidence
+  html: {
+    patterns: [
+      /<\!DOCTYPE\s+html>/i,                        // doctype
+      /<html[\s>]/i,                                // html tag
+      /<head[\s>]/i,                               // head tag
+      /<body[\s>]/i,                               // body tag
+      /<div[\s>]/i,                                // div tag
+      /<script[\s>]/i,                             // script tag
+      /<style[\s>]/i,                              // style tag
+    ],
+    weight: 10,
+    required: [/<\!DOCTYPE\s+html>/i, /<html[\s>]/i]
+  },
+  
+  // CSS - high confidence
+  css: {
+    patterns: [
+      /[.#]\w+\s*\{[^}]*\}/,                        // selector with braces
+      /:\s*(hover|active|focus|before|after)\s*\{/, // pseudo-classes
+      /@media\s+\w+/,                               // media queries
+      /\b(color|background|margin|padding|border|display|position)\s*:/, // properties
+      /#[0-9a-fA-F]{3,6}\b/,                        // hex colors
+      /\b(rgba?|hsla?)\s*\(/,                       // color functions
+    ],
+    weight: 8,
+    required: [/[.#]\w+\s*\{[^}]*\}/]
+  },
+  
+  // SQL - high confidence
+  sql: {
+    patterns: [
+      /\bSELECT\s+\w+\s+FROM\b/i,                  // SELECT FROM
+      /\bINSERT\s+INTO\s+\w+/i,                    // INSERT
+      /\bUPDATE\s+\w+\s+SET\b/i,                   // UPDATE
+      /\bDELETE\s+FROM\s+\w+/i,                    // DELETE
+      /\bCREATE\s+TABLE\s+\w+/i,                   // CREATE TABLE
+      /\bWHERE\s+\w+\s*=|WHERE\s+\w+\s+LIKE/i,   // WHERE clause
+      /\bJOIN\s+\w+\s+ON\b/i,                      // JOIN
+      /\bGROUP\s+BY|ORDER\s+BY/i,                  // GROUP/ORDER BY
+    ],
+    weight: 9,
+    required: [/\bSELECT\s+\w+\s+FROM\b/i, /\bINSERT\s+INTO|UPDATE\s+\w+\s+SET/i]
+  },
+  
+  // Bash/Shell - high confidence
+  bash: {
+    patterns: [
+      /#!\/bin\/bash|#!\/bin\/sh|#!\/usr\/bin\/env\s+bash/, // shebang
+      /\becho\s+["']|\becho\s+\$/,                  // echo
+      /\bif\s+\[|if\s+\[\[/,                        // if statement
+      /\bthen\s*\n|\bfi\s*\n/,                     // then/fi
+      /\bfor\s+\w+\s+in\s+|while\s+\[|until\s+\[/, // loops
+      /\bdone\s*\n/,                               // done
+      /\$\w+|\$\{[^}]+\}/,                         // variables
+      /\|\s*grep|\|\s*awk|\|\s+sed/,               // pipes
+    ],
+    weight: 9,
+    required: [/#!\/bin\/(bash|sh)/, /\becho\s+|\bif\s+\[/]
+  },
+  
+  // JSON - very high confidence
+  json: {
+    patterns: [
+      /^\s*\{\s*"\w+"\s*:/,                         // object start
+      /^\s*\[\s*("[^"]*"|\d+|\{)/,                 // array start
+      /"\w+"\s*:\s*("[^"]*"|\d+|true|false|null)/, // key-value pair
+      /"\w+"\s*:\s*\{[^}]*\}/,                     // nested object
+      /"\w+"\s*:\s*\[[^\]]*\]/,                    // array value
+    ],
+    weight: 10,
+    required: [/^\s*\{\s*"\w+"\s*:/, /^\s*\[\s*("[^"]*"|\d+|\{)/]
+  },
+  
+  // YAML - high confidence
+  yaml: {
+    patterns: [
+      /^\w+:\s*\n/m,                               // key: (newline)
+      /^\s+-\s+\w+:\s*/m,                         // list item with key
+      /^---\s*\n|^\.\.\.\s*\n/m,                   // document markers
+      /\bapiVersion:\s*\w+|\bkind:\s*\w+/,       // Kubernetes
+      /\bname:\s*\w+|\bmetadata:/,                // common keys
+    ],
+    weight: 8,
+    required: [/^\w+:\s*\n/m, /^\s+-\s+\w+:\s*/m]
+  },
+  
+  // Markdown - high confidence
+  markdown: {
+    patterns: [
+      /^#{1,6}\s+\w+/m,                            // headings
+      /\*\*[^*]+\*\*|__[^_]+__/,                   // bold
+      /\*[^*]+\*|_[^_]+_/,                         // italic
+      /\[([^\]]+)\]\(([^)]+)\)/,                   // links
+      /!\[([^\]]*)\]\(([^)]+)\)/,                  // images
+      /^```\w*|^\s{4,}\w+/m,                      // code blocks
+      /^\s*[-*+]\s+\w+/m,                         // lists
+    ],
+    weight: 8,
+    required: [/^#{1,6}\s+\w+/m, /\*\*[^*]+\*\*/, /\[([^\]]+)\]\(([^)]+)\)/]
+  },
+}
+
+// Detect language from code with scoring system
 function detectLanguage(code: string): string {
   if (!code || code.trim().length < 10) return "javascript"
   
-  for (const [lang, patterns] of Object.entries(LANGUAGE_PATTERNS)) {
-    for (const pattern of patterns) {
-      if (pattern.test(code)) {
-        return lang
+  const scores: { [key: string]: number } = {}
+  
+  // Calculate scores for each language
+  for (const [lang, config] of Object.entries(LANGUAGE_PATTERNS)) {
+    scores[lang] = 0
+    
+    // Check required patterns first (if any)
+    if (config.required && config.required.length > 0) {
+      const hasRequired = config.required.some(pattern => pattern.test(code))
+      if (!hasRequired) {
+        scores[lang] = -1 // Skip this language
+        continue
       }
+    }
+    
+    // Count matching patterns
+    let matchCount = 0
+    for (const pattern of config.patterns) {
+      if (pattern.test(code)) {
+        matchCount++
+      }
+    }
+    
+    // Calculate weighted score
+    scores[lang] = matchCount * config.weight
+  }
+  
+  // Find language with highest score
+  let bestLang = "javascript"
+  let bestScore = 0
+  
+  for (const [lang, score] of Object.entries(scores)) {
+    if (score > bestScore) {
+      bestScore = score
+      bestLang = lang
     }
   }
   
-  // Default to javascript if no pattern matches
-  return "javascript"
+  // If no good match found, try heuristics
+  if (bestScore < 5) {
+    // Check for common patterns that might indicate JavaScript
+    if (/\bfunction\s+\w+\s*\(|\bconsole\.|\bdocument\./.test(code)) {
+      return "javascript"
+    }
+    // Check for TypeScript specific patterns
+    if (/\binterface\s+\w+|\btype\s+\w+/.test(code)) {
+      return "typescript"
+    }
+  }
+  
+  return bestLang
+}
+
+// Format date to relative time (e.g., "2 hours ago", "Yesterday", "3 days ago")
+function formatRelativeDate(date: Date | string): string {
+  const now = new Date()
+  const reviewDate = typeof date === 'string' ? new Date(date) : date
+  const diffInMs = now.getTime() - reviewDate.getTime()
+  const diffInSeconds = Math.floor(diffInMs / 1000)
+  const diffInMinutes = Math.floor(diffInSeconds / 60)
+  const diffInHours = Math.floor(diffInMinutes / 60)
+  const diffInDays = Math.floor(diffInHours / 24)
+  
+  if (diffInSeconds < 60) {
+    return 'Just now'
+  } else if (diffInMinutes < 60) {
+    return `${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''} ago`
+  } else if (diffInHours < 24) {
+    return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`
+  } else if (diffInDays === 1) {
+    return 'Yesterday'
+  } else if (diffInDays < 7) {
+    return `${diffInDays} days ago`
+  } else if (diffInDays < 30) {
+    const weeks = Math.floor(diffInDays / 7)
+    return `${weeks} week${weeks > 1 ? 's' : ''} ago`
+  } else {
+    return reviewDate.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
 }
 
 interface DashboardProps {
@@ -193,6 +561,8 @@ export function Dashboard({ onLogout }: DashboardProps) {
     return Number(localStorage.getItem('wallpaperOpacity')) || 0.5
   })
   const [showSystemSettings, setShowSystemSettings] = useState(false)
+  const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null)
+  const [selectedReviewDetails, setSelectedReviewDetails] = useState<any>(null)
 
   // Apply accent color on mount and when it changes
   useEffect(() => {
@@ -268,6 +638,85 @@ export function Dashboard({ onLogout }: DashboardProps) {
     }
   }, [recentReviews])
 
+  // Load review history from database
+  const loadReviewHistory = async () => {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    try {
+      const response = await reviewAPI.getHistory(token, 50, 0)
+      if (response.success && response.reviews) {
+        // Convert database reviews to ReviewHistory format
+        const historyReviews: ReviewHistory[] = response.reviews.map((review: any) => ({
+          id: review.id.toString(),
+          language: review.language || 'unknown',
+          timestamp: new Date(review.created_at),
+          issues: review.issues_count,
+          suggestions: review.suggestions_count,
+          fixApplied: review.fix_applied,
+          codeSnippet: review.code_snippet?.slice(0, 200) + (review.code_snippet?.length > 200 ? '...' : '')
+        }))
+        
+        setRecentReviews(historyReviews)
+        
+        // Update stats
+        const statsResponse = await reviewAPI.getStats(token)
+        if (statsResponse.success) {
+          const totalReviews = parseInt(String(statsResponse.stats.total_reviews)) || 0
+          const totalIssues = parseInt(String(statsResponse.stats.total_issues)) || 0
+          const fixesApplied = parseInt(String(statsResponse.stats.fixes_applied)) || 0
+          const todayReviews = parseInt(String(statsResponse.stats.today_reviews)) || 0
+          
+          setStats(prev => ({
+            ...prev,
+            totalReviews,
+            totalSolutions: fixesApplied,
+            todayReviews,
+            avgIssues: totalReviews > 0 ? totalIssues / totalReviews : 2.4
+          }))
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load review history:', error)
+    }
+  }
+
+  // Load review history on component mount
+  useEffect(() => {
+    loadReviewHistory()
+  }, [])
+
+  // Load review details when selected
+  const loadReviewDetails = async (reviewId: string) => {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      console.error('No token found in localStorage')
+      setError('Please login again to view review details')
+      return
+    }
+
+    console.log('Loading review details for ID:', reviewId)
+    console.log('Token available:', token ? 'Yes' : 'No')
+
+    try {
+      const response = await reviewAPI.getReviewById(parseInt(reviewId), token)
+      if (response.success) {
+        console.log('Review details loaded:', response.review)
+        setSelectedReviewDetails(response.review)
+        setSelectedReviewId(reviewId)
+      }
+    } catch (error: any) {
+      console.error('Failed to load review details:', error)
+      if (error.message?.includes('Invalid token') || error.message?.includes('Token expired')) {
+        setError('Your session has expired. Please login again.')
+        // Optionally logout the user
+        // handleLogout()
+      } else {
+        setError(`Failed to load review: ${error.message}`)
+      }
+    }
+  }
+
   const handleLogout = () => {
     localStorage.removeItem('token')
     if (onLogout) {
@@ -301,12 +750,41 @@ export function Dashboard({ onLogout }: DashboardProps) {
       const response = await aiAPI.getReview({ code, language: actualLanguage }, token)
       
       // Handle both old format (just review) and new format (review + improvedCode)
+      let reviewText = ''
+      let improvedCodeText = ''
+      
       if (response.review && typeof response.review === 'object') {
-        setReview(response.review.review || response.review)
-        setImprovedCode(response.review.improvedCode || code)
+        reviewText = response.review.review || response.review
+        improvedCodeText = response.review.improvedCode || code
       } else {
-        setReview(response.review || response)
-        setImprovedCode(code)
+        reviewText = response.review || response
+        improvedCodeText = code
+      }
+      
+      setReview(reviewText)
+      setImprovedCode(improvedCodeText)
+      
+      // Parse issues and suggestions from review text (simple parsing)
+      const issuesCount = (reviewText.match(/## Issues Found/gi) || []).length > 0 ? 
+        (reviewText.match(/### Critical/gi) || []).length + 
+        (reviewText.match(/### Warning/gi) || []).length + 
+        (reviewText.match(/### Suggestion/gi) || []).length : 3
+      
+      const suggestionsCount = (reviewText.match(/suggestion|improve|recommend/gi) || []).length
+      
+      // Save review to database
+      try {
+        await reviewAPI.saveReview({
+          code_snippet: code,
+          language: actualLanguage,
+          ai_review: reviewText,
+          improved_code: improvedCodeText,
+          issues_count: issuesCount || 3,
+          suggestions_count: suggestionsCount || 5
+        }, token)
+      } catch (saveError) {
+        console.error('Failed to save review:', saveError)
+        // Continue even if save fails - don't block the user
       }
       
       // Update stats
@@ -317,13 +795,16 @@ export function Dashboard({ onLogout }: DashboardProps) {
         todayReviews: prev.todayReviews + 1
       }))
 
-      // Add to recent reviews
+      // Refresh review history
+      await loadReviewHistory()
+
+      // Add to recent reviews (local state for immediate UI update)
       const newReview: ReviewHistory = {
         id: Date.now().toString(),
         language: actualLanguage,
         timestamp: new Date(),
-        issues: 3,
-        suggestions: 5,
+        issues: issuesCount || 3,
+        suggestions: suggestionsCount || 5,
         fixApplied: false,
         codeSnippet: code.slice(0, 200) + (code.length > 200 ? '...' : '')
       }
@@ -332,13 +813,13 @@ export function Dashboard({ onLogout }: DashboardProps) {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to get review"
       
+      console.error("Review error:", err)
+      
       if (errorMessage.includes('Rate limit') || errorMessage.includes('quota') || errorMessage.includes('429')) {
         setError(`${errorMessage}\n\n💡 Tip: Identical code submissions are cached for 5 minutes. Try again in a moment.`)
       } else {
-        setError(errorMessage)
+        setError(`Error: ${errorMessage}\n\nPlease check:\n1. Backend server is running (npm start in Backend folder)\n2. Internet connection is active\n3. Try refreshing the page`)
       }
-      
-      console.error("Review error:", err)
     } finally {
       setIsLoading(false)
     }
@@ -787,9 +1268,9 @@ export function Dashboard({ onLogout }: DashboardProps) {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold">Review History</h2>
-                <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-4 text-base">
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <CheckCircle2 className="h-5 w-5 text-green-500" />
                     <span>{recentReviews.filter(r => r.fixApplied).length} fixes applied</span>
                   </div>
                 </div>
@@ -797,26 +1278,30 @@ export function Dashboard({ onLogout }: DashboardProps) {
               
               <div className="grid gap-4">
                 {recentReviews.map((review) => (
-                  <Card key={review.id} className="hover:bg-muted/50 transition-colors cursor-pointer border-l-4 border-l-transparent hover:border-l-primary">
+                  <Card 
+                    key={review.id} 
+                    className="hover:bg-slate-800/80 transition-colors cursor-pointer border-l-4 border-l-transparent hover:border-l-primary bg-slate-900/80"
+                    onClick={() => loadReviewDetails(review.id)}
+                  >
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-3">
                           <span className="text-2xl">{getLanguageIcon(review.language)}</span>
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <p className="font-medium capitalize">{review.language} Review</p>
+                              <p className="font-semibold text-lg text-slate-100 capitalize">{review.language} Review</p>
                               {review.fixApplied && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-sm font-medium bg-green-900/50 text-green-400 border border-green-700">
                                   <CheckCircle2 className="h-3 w-3 mr-1" />
                                   Fix Applied
                                 </span>
                               )}
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                              {review.timestamp.toLocaleString()}
+                            <p className="text-base text-slate-400">
+                              {formatRelativeDate(review.timestamp)}
                             </p>
                             {review.codeSnippet && (
-                              <p className="text-xs text-muted-foreground font-mono bg-muted px-2 py-1 rounded mt-2 max-w-md truncate">
+                              <p className="text-sm text-slate-400 font-mono bg-slate-800 px-2 py-1 rounded mt-2 max-w-md truncate border border-slate-700">
                                 {review.codeSnippet}
                               </p>
                             )}
@@ -825,14 +1310,14 @@ export function Dashboard({ onLogout }: DashboardProps) {
                         
                         <div className="flex items-center gap-4">
                           <div className="text-right">
-                            <p className="text-sm font-medium text-red-600 dark:text-red-400">
+                            <p className="text-base font-semibold text-red-400">
                               {review.issues} issues
                             </p>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-base text-slate-400">
                               {review.suggestions} suggestions
                             </p>
                           </div>
-                          <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                          <ChevronRight className="h-6 w-6 text-slate-400" />
                         </div>
                       </div>
                     </CardContent>
@@ -840,14 +1325,87 @@ export function Dashboard({ onLogout }: DashboardProps) {
                 ))}
                 
                 {recentReviews.length === 0 && (
-                  <Card>
-                    <CardContent className="p-8 text-center text-muted-foreground">
+                  <Card className="bg-slate-900/80 border-slate-700">
+                    <CardContent className="p-8 text-center text-slate-400">
                       <History className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No reviews yet. Start by reviewing some code!</p>
+                      <p className="text-lg">No reviews yet. Start by reviewing some code!</p>
                     </CardContent>
                   </Card>
                 )}
               </div>
+
+              {/* Review Details Dialog */}
+              <Dialog open={!!selectedReviewId} onOpenChange={() => { setSelectedReviewId(null); setSelectedReviewDetails(null); }}>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-900 border-slate-700 text-slate-100">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-xl text-slate-100">
+                      {selectedReviewDetails && (
+                        <>
+                          <span className="text-2xl">{getLanguageIcon(selectedReviewDetails.language || 'unknown')}</span>
+                          <span className="capitalize">{selectedReviewDetails.language || 'Unknown'} Review</span>
+                        </>
+                      )}
+                    </DialogTitle>
+                    <DialogDescription className="text-slate-400">
+                      {selectedReviewDetails && formatRelativeDate(selectedReviewDetails.created_at)}
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  {selectedReviewDetails && (
+                    <div className="space-y-6 mt-4">
+                      {/* Stats */}
+                      <div className="flex gap-4">
+                        <div className="bg-slate-800 px-4 py-2 rounded-lg border border-slate-700">
+                          <span className="text-red-400 font-semibold">{selectedReviewDetails.issues_count} issues</span>
+                        </div>
+                        <div className="bg-slate-800 px-4 py-2 rounded-lg border border-slate-700">
+                          <span className="text-blue-400 font-semibold">{selectedReviewDetails.suggestions_count} suggestions</span>
+                        </div>
+                        {selectedReviewDetails.fix_applied && (
+                          <div className="bg-green-900/50 px-4 py-2 rounded-lg border border-green-700">
+                            <span className="text-green-400 font-semibold flex items-center gap-1">
+                              <CheckCircle2 className="h-4 w-4" />
+                              Fix Applied
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Original Code */}
+                      <div>
+                        <h3 className="text-lg font-semibold mb-2 text-slate-200">Original Code</h3>
+                        <div className="bg-slate-800 p-4 rounded-lg border border-slate-700 overflow-x-auto">
+                          <pre className="text-sm font-mono text-slate-300 whitespace-pre-wrap">
+                            <code>{selectedReviewDetails.code_snippet}</code>
+                          </pre>
+                        </div>
+                      </div>
+
+                      {/* AI Review */}
+                      <div>
+                        <h3 className="text-lg font-semibold mb-2 text-slate-200">AI Review</h3>
+                        <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
+                          <div className="prose prose-invert max-w-none text-slate-300 whitespace-pre-wrap">
+                            {selectedReviewDetails.ai_review}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Improved Code (if available) */}
+                      {selectedReviewDetails.improved_code && (
+                        <div>
+                          <h3 className="text-lg font-semibold mb-2 text-slate-200">Improved Code</h3>
+                          <div className="bg-slate-800 p-4 rounded-lg border border-slate-700 overflow-x-auto">
+                            <pre className="text-sm font-mono text-slate-300 whitespace-pre-wrap">
+                              <code>{selectedReviewDetails.improved_code}</code>
+                            </pre>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </DialogContent>
+              </Dialog>
             </div>
           )}
 
