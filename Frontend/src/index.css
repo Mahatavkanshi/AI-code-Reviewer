@@ -117,7 +117,151 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    font-size: 16px;
+  }
   body {
     @apply bg-background text-foreground;
+    font-size: 16px;
+    line-height: 1.6;
   }
+  
+  /* Increase base text sizes */
+  h1 { @apply text-3xl font-bold; }
+  h2 { @apply text-2xl font-bold; }
+  h3 { @apply text-xl font-semibold; }
+  h4 { @apply text-lg font-semibold; }
+  
+  p, span, div {
+    font-size: 1rem;
+  }
+  
+  /* Ensure text is readable on dark backgrounds */
+  .text-readable {
+    color: rgba(255, 255, 255, 0.95) !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.9) !important;
+  }
+  
+  /* Card content styling */
+  .card-content-readable {
+    color: rgba(255, 255, 255, 0.95) !important;
+  }
+  
+  /* Labels and small text */
+  .text-label {
+    font-size: 1rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.95) !important;
+  }
+  
+  /* Large stats numbers */
+  .text-stat {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: rgba(255, 255, 255, 1) !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* Dynamic accent color support */
+.dynamic-primary {
+  background-color: var(--accent-color, var(--primary));
+}
+
+.dynamic-primary-text {
+  color: var(--accent-color, var(--primary));
+}
+
+.dynamic-primary-border {
+  border-color: var(--accent-color, var(--primary));
+}
+
+/* Override Tailwind primary color with custom accent */
+:root {
+  --accent-color: #3b82f6;
+}
+
+/* Button primary styles - ensure text is always visible */
+.bg-primary,
+button[class*="bg-primary"],
+[class*="Button"][class*="default"],
+button[type="submit"] {
+  background-color: var(--accent-color) !important;
+  color: white !important;
+}
+
+/* Text primary color for non-button elements */
+.text-primary {
+  color: var(--accent-color) !important;
+}
+
+/* Border primary */
+.border-primary {
+  border-color: var(--accent-color) !important;
+}
+
+/* Button hover effect */
+.bg-primary:hover,
+button[class*="bg-primary"]:hover {
+  filter: brightness(1.1) !important;
+  color: white !important;
+}
+
+/* Ensure all button text is white */
+button[class*="bg-primary"] > *,
+button[type="submit"] > * {
+  color: white !important;
+}
+
+/* Glassmorphism card styles for wallpaper mode */
+.glass-card {
+  background: rgba(20, 20, 25, 0.75) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 
+    0 8px 32px 0 rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark .glass-card {
+  background: rgba(15, 15, 20, 0.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 3D floating effect */
+.floating-card {
+  transform-style: preserve-3d;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.floating-card:hover {
+  transform: translateY(-4px) rotateX(2deg);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+/* Animated gradient border */
+.gradient-border {
+  position: relative;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, var(--accent-color, #3b82f6), transparent, var(--accent-color, #3b82f6));
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.5;
 }
