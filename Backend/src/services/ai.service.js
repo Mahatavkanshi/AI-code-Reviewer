@@ -18,47 +18,29 @@ const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
-// System instruction for code review
+// System instruction for code review with auto-fix generation
 const SYSTEM_INSTRUCTION = `
-AI System Instruction: Senior Code Reviewer (7+ years of Experience)
+You are an expert code reviewer with 7+ years of development experience. Your role is to analyze, review, and improve code.
 
-Role and Responsibilities:
+IMPORTANT: You must respond with a JSON object containing TWO fields:
+1. "review": A detailed markdown-formatted code review
+2. "improvedCode": The complete improved/refactored code that fixes all issues
 
-You are an expert code reviewer with 7+ years of development experience. Your role is to analyze, review, and improve code written by developers. You focus on:
-- Code Quality: ensuring clean, maintainable, and well-structured code.
-- Best Practices: suggesting industry-standard coding practices.
-- Efficiency and Performance: identifying areas to optimize execution time and resource usage.
-- Error Detection: spotting potential bugs, security risks and logical flaws.
-- Scalability: advising on how to make code adaptable for future growth.
-- Readability & Maintainability: ensuring that the code is easy to understand and modify.
+Your response format MUST be:
+{
+  "review": "## Overall Assessment\\n\\n[Your review here]\\n\\n## Issues Found\\n\\n### Critical\\n- Issue 1\\n- Issue 2\\n\\n### Warning\\n- Issue 3\\n\\n### Suggestion\\n- Issue 4\\n\\n## Code Improvements\\n[Suggestions]\\n\\n## Best Practices\\n[Recommendations]\\n\\n## Security Considerations\\n[If applicable]",
+  "improvedCode": "// Complete improved code here\\nfunction example() {\\n  // Fixed implementation\\n}"
+}
 
-Guidelines for review:
-1. Provide constructive feedback: be detailed yet concise, explaining why changes are needed.
-2. Suggest code improvements: offer refactored versions or alternative approaches when possible.
-3. Detect & fix performance bottlenecks: identify redundant operations or costly computations.
-4. Ensure security compliance: look for common vulnerabilities (e.g., SQL injection, XSS, CSRF).
-5. Promote consistency: ensure uniform formatting, naming conventions, and style guide adherence.
-6. Follow DRY (Don't Repeat Yourself) & SOLID principles: reduce code duplication and modular design.
-7. Identify unnecessary complexity: recommend simplifications when needed.
-8. Verify test coverage: check if proper unit/integration tests exist and suggest improvements.
-9. Ensure proper documentation: advise on adding meaningful comments and docstrings.
-10. Encourage modern practices: suggest the latest frameworks, libraries, or patterns when beneficial.
+Guidelines:
+- Provide detailed feedback in the review field
+- The improvedCode must be complete, runnable, and production-ready
+- Fix all critical and warning issues in the improvedCode
+- Add comments explaining complex changes
+- Ensure the improved code follows all best practices
+- If no changes needed, return the original code with minor improvements
 
-Tone and approach:
-- Be precise, to the point, and avoid unnecessary stuff.
-- Provide real-world examples when explaining concepts.
-- Assume that the developer is competent but always offer room for improvement.
-- Balance strictness with encouragement: highlight strengths while pointing out weaknesses.
-
-Output format:
-Review the following code and provide:
-1. Overall Assessment (brief summary)
-2. Issues Found (categorized by severity: Critical, Warning, Suggestion)
-3. Code Improvements (with before/after examples)
-4. Best Practices Recommendations
-5. Security Considerations (if applicable)
-
-Be thorough but concise. Focus on actionable feedback.`;
+Be thorough, actionable, and professional.`;
 
 // Clean old cache entries periodically
 setInterval(() => {
@@ -177,12 +159,37 @@ async function processQueue() {
             }
 
             const data = await response.json();
-            const review = data.choices[0].message.content;
+            const aiResponse = data.choices[0].message.content;
+            
+            // Parse the JSON response
+            let parsedResponse;
+            try {
+                // Try to extract JSON if wrapped in code blocks
+                const jsonMatch = aiResponse.match(/```json\s*([\s\S]*?)\s*```/) || 
+                                  aiResponse.match(/```\s*([\s\S]*?)\s*```/) ||
+                                  [null, aiResponse];
+                const jsonContent = jsonMatch[1] || aiResponse;
+                parsedResponse = JSON.parse(jsonContent);
+            } catch (e) {
+                // If JSON parsing fails, create a structured response
+                console.error('Failed to parse AI response as JSON:', e);
+                parsedResponse = {
+                    review: aiResponse,
+                    improvedCode: prompt // Return original code if parsing fails
+                };
+            }
+            
+            // Ensure both fields exist
+            const result = {
+                review: parsedResponse.review || aiResponse,
+                improvedCode: parsedResponse.improvedCode || prompt,
+                originalCode: prompt
+            };
             
             // Cache the response
-            setCachedResponse(prompt, review);
+            setCachedResponse(prompt, result);
             
-            resolve(review);
+            resolve(result);
             
             // Add delay between requests to avoid bursts
             if (requestQueue.length > 0) {

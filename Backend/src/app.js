@@ -1,7 +1,8 @@
 const express = require('express')
 const cors = require('cors')
 const aiRoutes = require('./routes/ai.routes')
-const authRoutes = require('./routes/auth.routes') // import the auth route
+const authRoutes = require('./routes/auth.routes')
+const githubRoutes = require('./routes/github.routes')
 
 const app = express()
 
@@ -17,6 +18,9 @@ app.get('/', (req, res) => {
 app.use('/ai', aiRoutes)
 
 // Mount Auth route
-app.use('/auth', authRoutes) // <--- added for login
+app.use('/auth', authRoutes)
+
+// Mount GitHub route
+app.use('/github', githubRoutes)
 
 module.exports = app

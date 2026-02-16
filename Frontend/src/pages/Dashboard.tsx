@@ -1,10 +1,13 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { aiAPI } from "@/lib/api"
 import { useNavigate } from "react-router-dom"
 import { useTheme } from "@/components/theme-provider"
+import { CodeDiff } from "@/components/CodeDiff"
+import { GitHubIntegration } from "@/components/GitHubIntegration"
+import { GitHubRepos } from "@/components/GitHubRepos"
 import { 
   Moon, 
   Sun, 
@@ -19,9 +22,12 @@ import {
   Clock,
   ChevronRight,
   Settings,
-  User
+  GitCompare,
+  Eye,
+  Github
 } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface ReviewHistory {
   id: string
@@ -29,16 +35,20 @@ interface ReviewHistory {
   timestamp: Date
   issues: number
   suggestions: number
+  fixApplied?: boolean
+  codeSnippet?: string
 }
 
 export function Dashboard() {
   const [code, setCode] = useState("")
   const [language, setLanguage] = useState("javascript")
   const [review, setReview] = useState("")
+  const [improvedCode, setImprovedCode] = useState("")
+  const [viewMode, setViewMode] = useState<"review" | "diff">("review")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [activeTab, setActiveTab] = useState("review")
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarOpen] = useState(true)
   const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
 
@@ -89,6 +99,8 @@ export function Dashboard() {
     setIsLoading(true)
     setError("")
     setReview("")
+    setImprovedCode("")
+    setViewMode("review")
 
     try {
       const token = localStorage.getItem('token')
@@ -98,12 +110,21 @@ export function Dashboard() {
       }
 
       const response = await aiAPI.getReview({ code, language }, token)
-      setReview(response.review)
+      
+      // Handle both old format (just review) and new format (review + improvedCode)
+      if (response.review && typeof response.review === 'object') {
+        setReview(response.review.review || response.review)
+        setImprovedCode(response.review.improvedCode || code)
+      } else {
+        setReview(response.review || response)
+        setImprovedCode(code)
+      }
       
       // Update stats
       setStats(prev => ({
         ...prev,
         totalReviews: prev.totalReviews + 1,
+        totalSolutions: prev.totalSolutions + 1,
         todayReviews: prev.todayReviews + 1
       }))
 
@@ -113,9 +134,11 @@ export function Dashboard() {
         language,
         timestamp: new Date(),
         issues: 3,
-        suggestions: 5
+        suggestions: 5,
+        fixApplied: false,
+        codeSnippet: code.slice(0, 200) + (code.length > 200 ? '...' : '')
       }
-      setRecentReviews(prev => [newReview, ...prev.slice(0, 4)])
+      setRecentReviews(prev => [newReview, ...prev.slice(0, 9)])
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to get review"
@@ -207,6 +230,15 @@ export function Dashboard() {
             >
               <BarChart3 className="h-4 w-4" />
               {sidebarOpen && <span>Analytics</span>}
+            </Button>
+
+            <Button 
+              variant={activeTab === "github" ? "secondary" : "ghost"}
+              className="w-full justify-start gap-2"
+              onClick={() => setActiveTab("github")}
+            >
+              <Github className="h-4 w-4" />
+              {sidebarOpen && <span>GitHub</span>}
             </Button>
 
             <Button 
@@ -343,75 +375,154 @@ export function Dashboard() {
                   </CardContent>
                 </Card>
 
-                <Card className="border-2">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <CheckCircle2 className="h-5 w-5" />
-                      AI Review
-                    </CardTitle>
-                    <CardDescription>
-                      AI-powered code review and suggestions
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {review ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 mb-4">
-                          <span className="inline-flex items-center rounded-md bg-green-50 dark:bg-green-900/20 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-400 ring-1 ring-inset ring-green-600/20">
-                            ✅ Review Complete
-                          </span>
-                          <span className="text-sm text-muted-foreground">
-                            {new Date().toLocaleTimeString()}
-                          </span>
-                        </div>
-                        <div className="prose dark:prose-invert max-w-none">
-                          <pre className="whitespace-pre-wrap font-mono text-sm bg-muted p-4 rounded-lg overflow-auto max-h-[450px] border">
-                            {review}
-                          </pre>
-                        </div>
+                <div className="space-y-4">
+                  {review && (
+                    <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "review" | "diff")} className="w-full">
+                      <div className="flex items-center justify-between mb-4">
+                        <TabsList>
+                          <TabsTrigger value="review" className="flex items-center gap-2">
+                            <Eye className="h-4 w-4" />
+                            Review
+                          </TabsTrigger>
+                          <TabsTrigger value="diff" className="flex items-center gap-2">
+                            <GitCompare className="h-4 w-4" />
+                            Diff View
+                          </TabsTrigger>
+                        </TabsList>
                         
-                        <div className="flex gap-2 mt-4">
-                          <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(review)}>
-                            📋 Copy Review
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => setReview("")}>
-                            🗑️ Clear
-                          </Button>
-                        </div>
+                        {viewMode === "review" && (
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center rounded-md bg-green-50 dark:bg-green-900/20 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-400 ring-1 ring-inset ring-green-600/20">
+                              ✅ Review Complete
+                            </span>
+                            <span className="text-sm text-muted-foreground">
+                              {new Date().toLocaleTimeString()}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-                        <div className="bg-muted rounded-full p-4 mb-4">
-                          <Zap className="h-8 w-8 opacity-50" />
+
+                      <TabsContent value="review" className="mt-0">
+                        <Card className="border-2">
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                              <CheckCircle2 className="h-5 w-5" />
+                              AI Review Analysis
+                            </CardTitle>
+                            <CardDescription>
+                              Detailed code analysis and improvement suggestions
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="prose dark:prose-invert max-w-none">
+                              <div className="whitespace-pre-wrap font-mono text-sm bg-muted p-4 rounded-lg overflow-auto max-h-[500px] border">
+                                {review}
+                              </div>
+                            </div>
+                            
+                            <div className="flex gap-2 mt-4">
+                              <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(review)}>
+                                📋 Copy Review
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => {setReview(""); setImprovedCode("");}}>
+                                🗑️ Clear
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </TabsContent>
+
+                      <TabsContent value="diff" className="mt-0">
+                        {improvedCode && (
+                          <CodeDiff 
+                            oldCode={code} 
+                            newCode={improvedCode}
+                            onApplyFix={(fixedCode) => {
+                              setCode(fixedCode);
+                              setStats(prev => ({
+                                ...prev,
+                                totalSolutions: prev.totalSolutions + 1
+                              }));
+                              // Mark the most recent review as fixed
+                              setRecentReviews(prev => {
+                                if (prev.length === 0) return prev;
+                                const updated = [...prev];
+                                updated[0] = { ...updated[0], fixApplied: true };
+                                return updated;
+                              });
+                            }}
+                          />
+                        )}
+                      </TabsContent>
+                    </Tabs>
+                  )}
+
+                  {!review && (
+                    <Card className="border-2">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <CheckCircle2 className="h-5 w-5" />
+                          AI Review
+                        </CardTitle>
+                        <CardDescription>
+                          AI-powered code review and suggestions
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                          <div className="bg-muted rounded-full p-4 mb-4">
+                            <Zap className="h-8 w-8 opacity-50" />
+                          </div>
+                          <p className="text-lg font-medium">Ready to Review</p>
+                          <p className="text-sm max-w-sm text-center mt-2">
+                            Submit your code to get an AI-powered review with side-by-side diff comparison
+                          </p>
                         </div>
-                        <p className="text-lg font-medium">Ready to Review</p>
-                        <p className="text-sm max-w-sm text-center mt-2">
-                          Submit your code to get an AI-powered review with suggestions for improvement
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
               </div>
             </>
           )}
 
           {activeTab === "history" && (
             <div className="space-y-4">
-              <h2 className="text-2xl font-bold">Review History</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold">Review History</h2>
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <span>{recentReviews.filter(r => r.fixApplied).length} fixes applied</span>
+                  </div>
+                </div>
+              </div>
               
               <div className="grid gap-4">
                 {recentReviews.map((review) => (
-                  <Card key={review.id} className="hover:bg-muted/50 transition-colors cursor-pointer">
+                  <Card key={review.id} className="hover:bg-muted/50 transition-colors cursor-pointer border-l-4 border-l-transparent hover:border-l-primary">
                     <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-3">
                           <span className="text-2xl">{getLanguageIcon(review.language)}</span>
-                          <div>
-                            <p className="font-medium capitalize">{review.language} Review</p>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium capitalize">{review.language} Review</p>
+                              {review.fixApplied && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  Fix Applied
+                                </span>
+                              )}
+                            </div>
                             <p className="text-sm text-muted-foreground">
                               {review.timestamp.toLocaleString()}
                             </p>
+                            {review.codeSnippet && (
+                              <p className="text-xs text-muted-foreground font-mono bg-muted px-2 py-1 rounded mt-2 max-w-md truncate">
+                                {review.codeSnippet}
+                              </p>
+                            )}
                           </div>
                         </div>
                         
@@ -482,7 +593,7 @@ export function Dashboard() {
                             cx="50%"
                             cy="50%"
                             labelLine={false}
-                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                            label={({ name, percent }) => `${name} ${percent ? (percent * 100).toFixed(0) : 0}%`}
                             outerRadius={80}
                             fill="#8884d8"
                             dataKey="value"
@@ -497,6 +608,22 @@ export function Dashboard() {
                     </div>
                   </CardContent>
                 </Card>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "github" && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <Github className="h-6 w-6" />
+                  GitHub Integration
+                </h2>
+              </div>
+              
+              <div className="grid gap-6">
+                <GitHubIntegration />
+                <GitHubRepos />
               </div>
             </div>
           )}

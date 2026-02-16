@@ -90,3 +90,267 @@ export const aiAPI = {
     return response.json();
   },
 };
+
+// GitHub API calls
+export const githubAPI = {
+  // Get GitHub OAuth URL
+  getAuthUrl: async (): Promise<{ authUrl: string }> => {
+    const response = await fetch(`${API_BASE_URL}/github/auth/url`);
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to get GitHub auth URL');
+    }
+    
+    return response.json();
+  },
+
+  // Check GitHub connection status
+  getStatus: async (): Promise<{ connected: boolean }> => {
+    const response = await fetch(`${API_BASE_URL}/github/auth/status`);
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to get GitHub status');
+    }
+    
+    return response.json();
+  },
+
+  // Disconnect GitHub
+  disconnect: async (): Promise<{ message: string }> => {
+    const response = await fetch(`${API_BASE_URL}/github/auth/disconnect`, {
+      method: 'POST',
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to disconnect GitHub');
+    }
+    
+    return response.json();
+  },
+
+  // Get GitHub user info
+  getUser: async (): Promise<any> => {
+    const response = await fetch(`${API_BASE_URL}/github/user`);
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to get GitHub user');
+    }
+    
+    return response.json();
+  },
+
+  // Get repositories
+  getRepositories: async (page: number = 1, perPage: number = 30): Promise<any[]> => {
+    const response = await fetch(
+      `${API_BASE_URL}/github/repos?page=${page}&perPage=${perPage}`
+    );
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to get repositories');
+    }
+    
+    return response.json();
+  },
+
+  // Get pull requests
+  getPullRequests: async (
+    owner: string,
+    repo: string,
+    state: string = 'open',
+    page: number = 1,
+    perPage: number = 30
+  ): Promise<any[]> => {
+    const response = await fetch(
+      `${API_BASE_URL}/github/repos/${owner}/${repo}/pulls?state=${state}&page=${page}&perPage=${perPage}`
+    );
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to get pull requests');
+    }
+    
+    return response.json();
+  },
+
+  // Get PR files
+  getPullRequestFiles: async (owner: string, repo: string, pullNumber: number): Promise<any[]> => {
+    const response = await fetch(
+      `${API_BASE_URL}/github/repos/${owner}/${repo}/pulls/${pullNumber}/files`
+    );
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to get PR files');
+    }
+    
+    return response.json();
+  },
+
+  // Review PR with AI
+  reviewPullRequest: async (owner: string, repo: string, pullNumber: number): Promise<any> => {
+    const response = await fetch(
+      `${API_BASE_URL}/github/repos/${owner}/${repo}/pulls/${pullNumber}/review`,
+      {
+        method: 'POST',
+      }
+    );
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to review pull request');
+    }
+    
+    return response.json();
+  },
+
+  // Post PR review
+  postPullRequestReview: async (
+    owner: string,
+    repo: string,
+    pullNumber: number,
+    reviewData: { body: string; event?: string; comments?: any[] }
+  ): Promise<any> => {
+    const response = await fetch(
+      `${API_BASE_URL}/github/repos/${owner}/${repo}/pulls/${pullNumber}/reviews`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(reviewData),
+      }
+    );
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to post PR review');
+    }
+    
+    return response.json();
+  },
+
+  // Get repository contents (file tree)
+  getRepoContents: async (owner: string, repo: string, path: string = '', ref: string = 'main'): Promise<any[]> => {
+    const response = await fetch(
+      `${API_BASE_URL}/github/repos/${owner}/${repo}/contents?path=${encodeURIComponent(path)}&ref=${ref}`
+    );
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to get repo contents');
+    }
+    
+    return response.json();
+  },
+
+  // Get file content
+  getFileContent: async (owner: string, repo: string, path: string, ref: string = 'main'): Promise<{ content: string; sha: string; size: number }> => {
+    const response = await fetch(
+      `${API_BASE_URL}/github/repos/${owner}/${repo}/file?path=${encodeURIComponent(path)}&ref=${ref}`
+    );
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to get file content');
+    }
+    
+    return response.json();
+  },
+
+  // Create branch
+  createBranch: async (owner: string, repo: string, branchName: string, baseBranch: string): Promise<any> => {
+    const response = await fetch(
+      `${API_BASE_URL}/github/repos/${owner}/${repo}/branches`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ branchName, baseBranch }),
+      }
+    );
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to create branch');
+    }
+    
+    return response.json();
+  },
+
+  // Update file
+  updateFile: async (
+    owner: string,
+    repo: string,
+    path: string,
+    content: string,
+    message: string,
+    branch: string,
+    sha: string
+  ): Promise<any> => {
+    const response = await fetch(
+      `${API_BASE_URL}/github/repos/${owner}/${repo}/contents`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ path, content, message, branch, sha }),
+      }
+    );
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to update file');
+    }
+    
+    return response.json();
+  },
+
+  // Create pull request
+  createPullRequest: async (
+    owner: string,
+    repo: string,
+    title: string,
+    body: string,
+    head: string,
+    base: string
+  ): Promise<any> => {
+    const response = await fetch(
+      `${API_BASE_URL}/github/repos/${owner}/${repo}/pulls`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ title, body, head, base }),
+      }
+    );
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to create pull request');
+    }
+    
+    return response.json();
+  },
+
+  // Get default branch
+  getDefaultBranch: async (owner: string, repo: string): Promise<{ defaultBranch: string }> => {
+    const response = await fetch(
+      `${API_BASE_URL}/github/repos/${owner}/${repo}/default-branch`
+    );
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to get default branch');
+    }
+    
+    return response.json();
+  },
+};
