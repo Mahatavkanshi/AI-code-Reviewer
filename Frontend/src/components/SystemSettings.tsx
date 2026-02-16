@@ -289,7 +289,7 @@ export function SystemSettings({
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {SPECIAL_THEMES.map((theme) => (
               <button
                 key={theme.name}
@@ -301,47 +301,103 @@ export function SystemSettings({
                     setGradientTheme(theme.gradient)
                   }
                 }}
-                className={`group relative p-4 rounded-xl border-2 transition-all duration-300 hover:scale-105 ${
+                className={`group relative rounded-2xl overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-2xl ${
                   selectedGradient === theme.gradient
-                    ? 'ring-2 ring-offset-2 border-primary'
-                    : 'border-border hover:border-gray-400'
+                    ? 'ring-4 ring-white/50 shadow-2xl'
+                    : 'shadow-lg'
                 }`}
                 style={{
                   background: theme.gradient,
-                  borderColor: selectedGradient === theme.gradient ? theme.primary : undefined,
+                  height: '140px',
                 }}
               >
-                <div className="h-24 rounded-lg mb-3 shadow-lg bg-white/10 backdrop-blur-sm" />
-                <p className="text-sm font-bold text-center text-white drop-shadow-md">{theme.name}</p>
+                {/* Glass effect overlay */}
+                <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent" />
+                
+                {/* Selected indicator */}
                 {selectedGradient === theme.gradient && (
-                  <div 
-                    className="absolute top-3 right-3 bg-white rounded-full p-1.5 shadow-lg"
-                  >
-                    <Check className="h-4 w-4 text-primary" />
+                  <div className="absolute top-3 right-3 z-10">
+                    <div className="bg-white rounded-full p-1.5 shadow-lg">
+                      <Check className="h-4 w-4" style={{ color: theme.primary }} />
+                    </div>
                   </div>
                 )}
+                
+                {/* Theme name at bottom with glass effect */}
+                <div className="absolute bottom-0 left-0 right-0 p-3">
+                  <div 
+                    className="bg-white/90 backdrop-blur-sm rounded-xl py-2 px-3 shadow-lg"
+                  >
+                    <p 
+                      className="text-sm font-semibold text-center"
+                      style={{ color: theme.primary }}
+                    >
+                      {theme.name}
+                    </p>
+                  </div>
+                </div>
               </button>
             ))}
           </div>
 
+          {/* Remove Theme Button */}
+          {selectedGradient && (
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedGradient(null)
+                  localStorage.removeItem('gradientTheme')
+                  if (setGradientTheme) {
+                    setGradientTheme(null)
+                  }
+                }}
+                className="gap-2 border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+              >
+                <X className="h-4 w-4" />
+                Remove Special Theme
+              </Button>
+            </div>
+          )}
+
           <Card className="bg-muted/50">
             <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div 
-                  className="w-20 h-20 rounded-xl shadow-lg"
-                  style={{ 
-                    background: selectedGradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                  }}
-                />
-                <div>
-                  <h4 className="font-medium">Current Gradient</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedGradient ? 'Custom gradient theme active' : 'Select a gradient theme'}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    These themes provide a classy, modern appearance
-                  </p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div 
+                    className="w-20 h-20 rounded-xl shadow-lg"
+                    style={{ 
+                      background: selectedGradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                    }}
+                  />
+                  <div>
+                    <h4 className="font-medium">Current Gradient</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedGradient ? 'Custom gradient theme active' : 'Select a gradient theme'}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      These themes provide a classy, modern appearance
+                    </p>
+                  </div>
                 </div>
+                
+                {selectedGradient && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedGradient(null)
+                      localStorage.removeItem('gradientTheme')
+                      if (setGradientTheme) {
+                        setGradientTheme(null)
+                      }
+                    }}
+                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Remove
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>

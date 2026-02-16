@@ -861,7 +861,13 @@ export function Dashboard({ onLogout }: DashboardProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background relative">
+    <div 
+      className="min-h-screen relative"
+      style={{
+        background: gradientTheme || undefined,
+        backgroundColor: gradientTheme ? undefined : 'var(--background)'
+      }}
+    >
       {/* Wallpaper Background - Very Subtle */}
       {wallpaper && (
         <div className="fixed inset-0 z-0 pointer-events-none">
@@ -1517,60 +1523,68 @@ export function Dashboard({ onLogout }: DashboardProps) {
                 </CardContent>
               </Card>
 
-                <Card className="border-2 border-gradient-to-br from-green-500/20 to-teal-500/20">
+                <Card className="border-2 bg-slate-800/95 border-slate-600">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-slate-100">
                       <FileCode className="h-5 w-5 text-primary" />
                       Languages
                     </CardTitle>
-                    <CardDescription>Distribution by programming language</CardDescription>
+                    <CardDescription className="text-slate-400">Distribution by programming language</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="h-[300px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <defs>
-                            {languageData.map((entry, index) => (
-                              <linearGradient key={`grad-${index}`} id={`pieGrad-${index}`} x1="0" y1="0" x2="1" y2="1">
-                                <stop offset="0%" stopColor={entry.gradient[0]} />
-                                <stop offset="100%" stopColor={entry.gradient[1]} />
-                              </linearGradient>
-                            ))}
-                          </defs>
-                          <Pie
-                            data={languageData}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            label={({ name, percent }) => `${name} ${percent ? (percent * 100).toFixed(0) : 0}%`}
-                            outerRadius={80}
-                            innerRadius={40}
-                            paddingAngle={3}
-                            fill="#8884d8"
-                            dataKey="value"
-                            animationDuration={1500}
-                            animationBegin={300}
-                          >
-                            {languageData.map((_entry, index) => (
-                              <Cell 
-                                key={`cell-${index}`} 
-                                fill={`url(#pieGrad-${index})`}
-                                stroke="rgba(0,0,0,0.3)"
-                                strokeWidth={2}
-                              />
-                            ))}
-                          </Pie>
-                          <Tooltip 
-                            contentStyle={{ 
-                              backgroundColor: 'rgba(0,0,0,0.9)', 
-                              border: '1px solid rgba(255,255,255,0.2)',
-                              borderRadius: '8px',
-                              boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
-                            }}
-                            itemStyle={{ color: '#fff' }}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
+                    <div className="h-[300px] bg-slate-900/50 rounded-lg p-4">
+                      {languageData.some(lang => lang.value > 0) ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <defs>
+                              {languageData.map((entry, index) => (
+                                <linearGradient key={`grad-${index}`} id={`pieGrad-${index}`} x1="0" y1="0" x2="1" y2="1">
+                                  <stop offset="0%" stopColor={entry.gradient[0]} />
+                                  <stop offset="100%" stopColor={entry.gradient[1]} />
+                                </linearGradient>
+                              ))}
+                            </defs>
+                            <Pie
+                              data={languageData.filter(lang => lang.value > 0)}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              label={({ name, percent }) => `${name} ${percent ? (percent * 100).toFixed(0) : 0}%`}
+                              outerRadius={80}
+                              innerRadius={40}
+                              paddingAngle={3}
+                              fill="#8884d8"
+                              dataKey="value"
+                              animationDuration={1500}
+                              animationBegin={300}
+                            >
+                              {languageData.filter(lang => lang.value > 0).map((_entry, index) => (
+                                <Cell 
+                                  key={`cell-${index}`} 
+                                  fill={`url(#pieGrad-${index})`}
+                                  stroke="rgba(0,0,0,0.3)"
+                                  strokeWidth={2}
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip 
+                              contentStyle={{ 
+                                backgroundColor: 'rgba(0,0,0,0.9)', 
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                borderRadius: '8px',
+                                boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
+                              }}
+                              itemStyle={{ color: '#fff' }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                          <FileCode className="h-12 w-12 mb-3 opacity-50" />
+                          <p>No language data available yet</p>
+                          <p className="text-sm">Start reviewing code to see distribution</p>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
