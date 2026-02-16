@@ -34,6 +34,82 @@ const COLOR_THEMES = [
   { name: "Mint Cool", primary: "#10b981", secondary: "#34d399", accent: "#6ee7b7" },
 ]
 
+// Special Gradient Themes - Classy & Modern
+const SPECIAL_THEMES = [
+  { 
+    name: "Midnight Gradient", 
+    primary: "#667eea", 
+    gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    accent: "#a78bfa"
+  },
+  { 
+    name: "Sunset Boulevard", 
+    primary: "#f093fb", 
+    gradient: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+    accent: "#fb7185"
+  },
+  { 
+    name: "Ocean Breeze", 
+    primary: "#4facfe", 
+    gradient: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+    accent: "#22d3ee"
+  },
+  { 
+    name: "Forest Mist", 
+    primary: "#43e97b", 
+    gradient: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+    accent: "#34d399"
+  },
+  { 
+    name: "Golden Hour", 
+    primary: "#fa709a", 
+    gradient: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+    accent: "#fbbf24"
+  },
+  { 
+    name: "Arctic Frost", 
+    primary: "#a8edea", 
+    gradient: "linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)",
+    accent: "#a5f3fc"
+  },
+  { 
+    name: "Neon Dreams", 
+    primary: "#b721ff", 
+    gradient: "linear-gradient(135deg, #b721ff 0%, #21d4fd 100%)",
+    accent: "#c084fc"
+  },
+  { 
+    name: "Warm Ember", 
+    primary: "#ff9a9e", 
+    gradient: "linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%)",
+    accent: "#fda4af"
+  },
+  { 
+    name: "Deep Space", 
+    primary: "#0c3483", 
+    gradient: "linear-gradient(135deg, #0c3483 0%, #a2b6df 100%, #6b8cce 100%, #a2b6df 100%)",
+    accent: "#60a5fa"
+  },
+  { 
+    name: "Tropical Paradise", 
+    primary: "#42e695", 
+    gradient: "linear-gradient(135deg, #42e695 0%, #3bb2b8 100%)",
+    accent: "#2dd4bf"
+  },
+  { 
+    name: "Berry Smoothie", 
+    primary: "#8b5cf6", 
+    gradient: "linear-gradient(135deg, #8b5cf6 0%, #d946ef 50%, #f43f5e 100%)",
+    accent: "#c084fc"
+  },
+  { 
+    name: "Monochrome Dark", 
+    primary: "#2d3748", 
+    gradient: "linear-gradient(135deg, #2d3748 0%, #1a202c 100%)",
+    accent: "#94a3b8"
+  },
+]
+
 interface SystemSettingsProps {
   accentColor: string
   setAccentColor: (color: string) => void
@@ -45,6 +121,7 @@ interface SystemSettingsProps {
   setWallpaperBlur: (blur: number) => void
   wallpaperOpacity: number
   setWallpaperOpacity: (opacity: number) => void
+  setGradientTheme?: (gradient: string | null) => void
 }
 
 export function SystemSettings({
@@ -58,8 +135,10 @@ export function SystemSettings({
   setWallpaperBlur,
   wallpaperOpacity,
   setWallpaperOpacity,
+  setGradientTheme,
 }: SystemSettingsProps) {
-  const [activeTab, setActiveTab] = useState<'colors' | 'wallpaper'>('colors')
+  const [activeTab, setActiveTab] = useState<'colors' | 'special' | 'wallpaper'>('colors')
+  const [selectedGradient, setSelectedGradient] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleColorSelect = (color: string) => {
@@ -105,7 +184,7 @@ export function SystemSettings({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4 border-b pb-4">
+      <div className="flex items-center gap-4 border-b pb-4 flex-wrap">
         <Button
           variant={activeTab === 'colors' ? 'default' : 'outline'}
           onClick={() => setActiveTab('colors')}
@@ -113,6 +192,14 @@ export function SystemSettings({
         >
           <Palette className="h-4 w-4" />
           Color Theme
+        </Button>
+        <Button
+          variant={activeTab === 'special' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('special')}
+          className="gap-2"
+        >
+          <Sparkles className="h-4 w-4" />
+          Special Themes
         </Button>
         <Button
           variant={activeTab === 'wallpaper' ? 'default' : 'outline'}
@@ -182,6 +269,77 @@ export function SystemSettings({
                   <p className="text-sm text-muted-foreground">{accentColor}</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     This color is now active throughout the dashboard
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === 'special' && (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+              <Sparkles className="h-5 w-5" style={{ color: accentColor }} />
+              Special Gradient Themes
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Choose from our exclusive collection of classy gradient themes for a premium look
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {SPECIAL_THEMES.map((theme) => (
+              <button
+                key={theme.name}
+                onClick={() => {
+                  setSelectedGradient(theme.gradient)
+                  handleColorSelect(theme.primary)
+                  localStorage.setItem('gradientTheme', theme.gradient)
+                  if (setGradientTheme) {
+                    setGradientTheme(theme.gradient)
+                  }
+                }}
+                className={`group relative p-4 rounded-xl border-2 transition-all duration-300 hover:scale-105 ${
+                  selectedGradient === theme.gradient
+                    ? 'ring-2 ring-offset-2 border-primary'
+                    : 'border-border hover:border-gray-400'
+                }`}
+                style={{
+                  background: theme.gradient,
+                  borderColor: selectedGradient === theme.gradient ? theme.primary : undefined,
+                }}
+              >
+                <div className="h-24 rounded-lg mb-3 shadow-lg bg-white/10 backdrop-blur-sm" />
+                <p className="text-sm font-bold text-center text-white drop-shadow-md">{theme.name}</p>
+                {selectedGradient === theme.gradient && (
+                  <div 
+                    className="absolute top-3 right-3 bg-white rounded-full p-1.5 shadow-lg"
+                  >
+                    <Check className="h-4 w-4 text-primary" />
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+
+          <Card className="bg-muted/50">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div 
+                  className="w-20 h-20 rounded-xl shadow-lg"
+                  style={{ 
+                    background: selectedGradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                  }}
+                />
+                <div>
+                  <h4 className="font-medium">Current Gradient</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedGradient ? 'Custom gradient theme active' : 'Select a gradient theme'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    These themes provide a classy, modern appearance
                   </p>
                 </div>
               </div>

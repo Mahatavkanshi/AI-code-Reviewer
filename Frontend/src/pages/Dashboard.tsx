@@ -11,6 +11,8 @@ import { GitHubRepos } from "@/components/GitHubRepos"
 import { LocalFolderBrowser } from "@/components/LocalFolderBrowser"
 import { AIReviewDisplay } from "@/components/AIReviewDisplay"
 import { SystemSettings } from "@/components/SystemSettings"
+import { CodeExecutor } from "@/components/CodeExecutor"
+import { NotesPanel } from "@/components/NotesPanel"
 import { 
   Moon, 
   Sun, 
@@ -30,7 +32,9 @@ import {
   Github,
   FolderOpen,
   Monitor,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Play,
+  BookOpen
 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
@@ -563,11 +567,28 @@ export function Dashboard({ onLogout }: DashboardProps) {
   const [showSystemSettings, setShowSystemSettings] = useState(false)
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null)
   const [selectedReviewDetails, setSelectedReviewDetails] = useState<any>(null)
+  
+  // Gradient theme state
+  const [gradientTheme, setGradientTheme] = useState(() => {
+    return localStorage.getItem('gradientTheme') || null
+  })
+  
+  // Review panel active tab
+  const [reviewPanelTab, setReviewPanelTab] = useState<'review' | 'output' | 'notes'>('review')
 
-  // Apply accent color on mount and when it changes
+  // Apply accent color and gradient theme on mount and when they change
   useEffect(() => {
     document.documentElement.style.setProperty('--accent-color', accentColor)
-  }, [accentColor])
+    
+    // Apply gradient theme if selected
+    if (gradientTheme) {
+      document.documentElement.style.setProperty('--gradient-theme', gradientTheme)
+      document.body.style.background = gradientTheme
+    } else {
+      document.documentElement.style.removeProperty('--gradient-theme')
+      document.body.style.background = ''
+    }
+  }, [accentColor, gradientTheme])
 
   // Stats
   const [stats, setStats] = useState({
@@ -1158,40 +1179,32 @@ export function Dashboard({ onLogout }: DashboardProps) {
                 </Card>
 
                 <div className="space-y-4">
-                  {review && (
-                    <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "review" | "diff")} className="w-full">
-                      <div className="flex items-center justify-between mb-4">
-                        <TabsList>
-                          <TabsTrigger value="review" className="flex items-center gap-2">
-                            <Eye className="h-4 w-4" />
-                            Review
-                          </TabsTrigger>
-                          <TabsTrigger value="diff" className="flex items-center gap-2">
-                            <GitCompare className="h-4 w-4" />
-                            Diff View
-                          </TabsTrigger>
-                        </TabsList>
-                        
-                        {viewMode === "review" && (
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center rounded-md bg-green-50 dark:bg-green-900/20 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-400 ring-1 ring-inset ring-green-600/20">
-                              ✅ Review Complete
-                            </span>
-                            <span className="text-sm text-muted-foreground">
-                              {new Date().toLocaleTimeString()}
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                  {/* Code Execution, Review & Notes Tabs */}
+                  <Tabs value={reviewPanelTab} onValueChange={(v) => setReviewPanelTab(v as "review" | "output" | "notes")} className="w-full">
+                    <TabsList className="grid w-full grid-cols-3 bg-slate-800">
+                      <TabsTrigger value="review" className="gap-2">
+                        <Eye className="h-4 w-4" />
+                        AI Review
+                      </TabsTrigger>
+                      <TabsTrigger value="output" className="gap-2">
+                        <Play className="h-4 w-4" />
+                        Output
+                      </TabsTrigger>
+                      <TabsTrigger value="notes" className="gap-2">
+                        <BookOpen className="h-4 w-4" />
+                        Notes
+                      </TabsTrigger>
+                    </TabsList>
 
-                      <TabsContent value="review" className="mt-0">
-                        <Card className="border-2">
+                    <TabsContent value="review" className="mt-4">
+                      {review ? (
+                        <Card className="border-2 bg-slate-900/90 border-slate-700">
                           <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
+                            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-100">
                               <CheckCircle2 className="h-5 w-5" />
                               AI Review Analysis
                             </CardTitle>
-                            <CardDescription>
+                            <CardDescription className="text-base text-slate-400">
                               Detailed code analysis and improvement suggestions
                             </CardDescription>
                           </CardHeader>
@@ -1208,54 +1221,87 @@ export function Dashboard({ onLogout }: DashboardProps) {
                             </div>
                           </CardContent>
                         </Card>
-                      </TabsContent>
+                      ) : (
+                        <Card className="border-2 bg-slate-900/90 border-slate-700">
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-100">
+                              <CheckCircle2 className="h-5 w-5" />
+                              AI Review
+                            </CardTitle>
+                            <CardDescription className="text-base text-slate-400">
+                              AI-powered code review and suggestions
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="flex flex-col items-center justify-center py-20">
+                              <div className="bg-slate-800 rounded-full p-6 mb-6">
+                                <Zap className="h-10 w-10 text-slate-400" />
+                              </div>
+                              <p className="text-2xl font-bold text-slate-100">Ready to Review</p>
+                              <p className="text-base max-w-sm text-center mt-4 text-slate-400">
+                                Submit your code to get an AI-powered review with side-by-side diff comparison
+                              </p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </TabsContent>
 
-                      <TabsContent value="diff" className="mt-0">
-                        {improvedCode && (
-                          <CodeDiff 
-                            oldCode={code} 
-                            newCode={improvedCode}
-                            onApplyFix={(fixedCode) => {
-                              setCode(fixedCode);
-                              setStats(prev => ({
-                                ...prev,
-                                totalSolutions: prev.totalSolutions + 1
-                              }));
-                              // Mark the most recent review as fixed
-                              setRecentReviews(prev => {
-                                if (prev.length === 0) return prev;
-                                const updated = [...prev];
-                                updated[0] = { ...updated[0], fixApplied: true };
-                                return updated;
-                              });
-                            }}
-                          />
-                        )}
-                      </TabsContent>
-                    </Tabs>
+                    <TabsContent value="output" className="mt-4">
+                      <CodeExecutor code={code} language={language === "auto" ? detectLanguage(code) : language} />
+                    </TabsContent>
+
+                    <TabsContent value="notes" className="mt-4">
+                      <NotesPanel 
+                        reviewId={selectedReviewId || undefined}
+                        onSave={(notes) => console.log('Notes saved:', notes)}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                  
+                  {/* Show Diff View Toggle */}
+                  {review && improvedCode && (
+                    <div className="mt-4 flex justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setViewMode(viewMode === "diff" ? "review" : "diff")}
+                        className="gap-2"
+                      >
+                        <GitCompare className="h-4 w-4" />
+                        {viewMode === "diff" ? "Hide Diff View" : "Show Diff View"}
+                      </Button>
+                    </div>
                   )}
-
-                  {!review && (
-                    <Card className="border-2 bg-slate-900/90 border-slate-700">
+                  
+                  {/* Diff View */}
+                  {review && improvedCode && viewMode === "diff" && (
+                    <Card className="border-2 bg-slate-900/90 border-slate-700 mt-4">
                       <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-100">
-                          <CheckCircle2 className="h-6 w-6" />
-                          AI Review
+                        <CardTitle className="flex items-center gap-2">
+                          <GitCompare className="h-5 w-5" />
+                          Code Diff View
                         </CardTitle>
-                        <CardDescription className="text-base text-slate-400">
-                          AI-powered code review and suggestions
-                        </CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <div className="flex flex-col items-center justify-center py-20">
-                          <div className="bg-slate-800 rounded-full p-6 mb-6">
-                            <Zap className="h-10 w-10 text-slate-400" />
-                          </div>
-                          <p className="text-2xl font-bold text-slate-100">Ready to Review</p>
-                          <p className="text-base max-w-sm text-center mt-4 text-slate-400">
-                            Submit your code to get an AI-powered review with side-by-side diff comparison
-                          </p>
-                        </div>
+                        <CodeDiff 
+                          oldCode={code} 
+                          newCode={improvedCode}
+                          onApplyFix={(fixedCode) => {
+                            setCode(fixedCode);
+                            setStats(prev => ({
+                              ...prev,
+                              totalSolutions: prev.totalSolutions + 1
+                            }));
+                            // Mark the most recent review as fixed
+                            setRecentReviews(prev => {
+                              if (prev.length === 0) return prev;
+                              const updated = [...prev];
+                              updated[0] = { ...updated[0], fixApplied: true };
+                              return updated;
+                            });
+                          }}
+                        />
                       </CardContent>
                     </Card>
                   )}
@@ -1693,6 +1739,7 @@ export function Dashboard({ onLogout }: DashboardProps) {
                     setWallpaperBlur={setWallpaperBlur}
                     wallpaperOpacity={wallpaperOpacity}
                     setWallpaperOpacity={setWallpaperOpacity}
+                    setGradientTheme={setGradientTheme}
                   />
                 </>
               )}
