@@ -1,86 +1,216 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const crypto = require('crypto');
 
-const genAI= new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_KEY);
-const model= genAI.getGenerativeModel({
-    model:"gemini-2.0-flash",
-    systemInstruction: `
-Here is a solid system instruction for your AI code reviewer:
+// Rate limiting configuration
+const RATE_LIMIT_WINDOW = 60000; // 1 minute in milliseconds
+const MAX_REQUESTS_PER_WINDOW = 30; // Conservative limit
+let requestTimestamps = [];
 
+// Simple in-memory cache
+const cache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
+
+// Request queue
+let requestQueue = [];
+let isProcessingQueue = false;
+
+// Groq API configuration
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+
+// System instruction for code review
+const SYSTEM_INSTRUCTION = `
 AI System Instruction: Senior Code Reviewer (7+ years of Experience)
 
 Role and Responsibilities:
 
-y are an expert code reviewer with 7+ years of  development experience.your role is to analyse,review,and improve Code written by developers.you focus on:
-. Code Qualityn :- ensuring clean, maintable, and well-structured code.
-. best practices :- suggesting industry-standard coding practices.
-. efficiency and performance :- identifying areas to optimize execution time and resource usage.
-. error detection :- spotting potential bugs, security risks and logical flaws.
-. scalabiltiy :- advising on how to make code adaptable for future growth.
-. readibility & maintainability :- ensuring that the code is easy to understand and modify.
+You are an expert code reviewer with 7+ years of development experience. Your role is to analyze, review, and improve code written by developers. You focus on:
+- Code Quality: ensuring clean, maintainable, and well-structured code.
+- Best Practices: suggesting industry-standard coding practices.
+- Efficiency and Performance: identifying areas to optimize execution time and resource usage.
+- Error Detection: spotting potential bugs, security risks and logical flaws.
+- Scalability: advising on how to make code adaptable for future growth.
+- Readability & Maintainability: ensuring that the code is easy to understand and modify.
 
 Guidelines for review:
-1. provide constructive feedback :- be detailed yet concise,explaining why changes are needed.
-2. suggest code improvements :- offer refactored versions or alternatives approaches when possible.
-3. detect & fix the performance bottlenecks :- identify redundant operations or costly computations.
-4. ensure security compliance :- look for common vulnerabilities(eg.., SQL injection,XSS,CSRF).
-5. promote consistency :- ensure uniform formatting,naming conventions, and style guide adherence.
-6. follow DRY  (dont repeat yourself) & solid principles :- reduce code duplication and modular design.
-7. identify unnecessary complexiy :- recommend simplifications when needed.
-8. verify test coverage :- check if proper unit/integration tests exists and suggest improvements.
-9. ensure proper documentation :- advice on adding meaningful comments and docstrings.
-10. encourages modern practices :- suggest the latest frameworks, libraries, or pattern when beneficial.
+1. Provide constructive feedback: be detailed yet concise, explaining why changes are needed.
+2. Suggest code improvements: offer refactored versions or alternative approaches when possible.
+3. Detect & fix performance bottlenecks: identify redundant operations or costly computations.
+4. Ensure security compliance: look for common vulnerabilities (e.g., SQL injection, XSS, CSRF).
+5. Promote consistency: ensure uniform formatting, naming conventions, and style guide adherence.
+6. Follow DRY (Don't Repeat Yourself) & SOLID principles: reduce code duplication and modular design.
+7. Identify unnecessary complexity: recommend simplifications when needed.
+8. Verify test coverage: check if proper unit/integration tests exist and suggest improvements.
+9. Ensure proper documentation: advise on adding meaningful comments and docstrings.
+10. Encourage modern practices: suggest the latest frameworks, libraries, or patterns when beneficial.
 
 Tone and approach:
-. be precise, to the point, and avoid unnecessary stuff.
-. provide real-world examples when explaining concepts.
-. Assume that the developer is competent but always offer room for improvement.
-. Balance strictness with encouragement :- highlight strengths while pointing out the weakness.
+- Be precise, to the point, and avoid unnecessary stuff.
+- Provide real-world examples when explaining concepts.
+- Assume that the developer is competent but always offer room for improvement.
+- Balance strictness with encouragement: highlight strengths while pointing out weaknesses.
 
-output examples:
-bad code:
-\`\`\`javascript
-function fetch data(){
-let data = fetch('/api/data').then(response => response.json());
-return data;
+Output format:
+Review the following code and provide:
+1. Overall Assessment (brief summary)
+2. Issues Found (categorized by severity: Critical, Warning, Suggestion)
+3. Code Improvements (with before/after examples)
+4. Best Practices Recommendations
+5. Security Considerations (if applicable)
 
+Be thorough but concise. Focus on actionable feedback.`;
+
+// Clean old cache entries periodically
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, value] of cache.entries()) {
+        if (now - value.timestamp > CACHE_TTL) {
+            cache.delete(key);
+        }
+    }
+}, 60000);
+
+// Check rate limit
+function checkRateLimit() {
+    const now = Date.now();
+    // Remove timestamps older than the window
+    requestTimestamps = requestTimestamps.filter(timestamp => 
+        now - timestamp < RATE_LIMIT_WINDOW
+    );
+    
+    if (requestTimestamps.length >= MAX_REQUESTS_PER_WINDOW) {
+        const oldestRequest = requestTimestamps[0];
+        const waitTime = Math.ceil((RATE_LIMIT_WINDOW - (now - oldestRequest)) / 1000);
+        throw new Error(`Rate limit exceeded. Please wait ${waitTime} seconds before trying again.`);
+    }
+    
+    requestTimestamps.push(now);
 }
-/'/'/'
-issues:
-. fetch() is asynchronous, but the function does not handle promises correctly.
-missing error handling for failed api calls.
 
-recommended fix:
-
-async function fetchdata() {
-try {
-const response = await fetch('/api/data);
-if (!response.ok) throw new Error("HTTP eror! Status: $\{response.status}");
-return await response.json();
-} catch (error) {
- console.error("Failed to fetch data:",error);
- return null;
+// Get cached response
+function getCachedResponse(prompt) {
+    const hash = crypto.createHash('md5').update(prompt).digest('hex');
+    const cached = cache.get(hash);
+    
+    if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+        console.log('Returning cached response');
+        return cached.data;
+    }
+    
+    return null;
 }
+
+// Cache response
+function setCachedResponse(prompt, data) {
+    const hash = crypto.createHash('md5').update(prompt).digest('hex');
+    cache.set(hash, {
+        data,
+        timestamp: Date.now()
+    });
 }
-improvements:
-handles async correctly using async/await.
-error handling added to manage failed requests.
-return null instead of breaking execution.
 
-final note:
+// Process request queue
+async function processQueue() {
+    if (isProcessingQueue || requestQueue.length === 0) return;
+    
+    isProcessingQueue = true;
+    
+    while (requestQueue.length > 0) {
+        const { prompt, resolve, reject } = requestQueue.shift();
+        
+        try {
+            // Check rate limit before each request
+            checkRateLimit();
+            
+            // Check cache first
+            const cached = getCachedResponse(prompt);
+            if (cached) {
+                resolve(cached);
+                continue;
+            }
+            
+            // Make API call to Groq
+            const response = await fetch(GROQ_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${GROQ_API_KEY}`
+                },
+                body: JSON.stringify({
+                    model: GROQ_MODEL,
+                    messages: [
+                        {
+                            role: 'system',
+                            content: SYSTEM_INSTRUCTION
+                        },
+                        {
+                            role: 'user',
+                            content: `Please review this code:\n\n${prompt}`
+                        }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 4096
+                })
+            });
 
-your mission is to ensure piece of code follows high standards. your review should empower
-developers to write better, more efficient, and scalable code while keepingperformance,security,and maintainability in mind.
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Groq API Error Response:', errorText);
+                let errorData = {};
+                try {
+                    errorData = JSON.parse(errorText);
+                } catch (e) {
+                    // Not JSON, use text as is
+                }
+                const errorMessage = errorData.error?.message || errorText || `HTTP error! status: ${response.status}`;
+                
+                if (response.status === 429) {
+                    throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+                }
+                if (response.status === 401) {
+                    throw new Error('Invalid API key configuration.');
+                }
+                if (response.status === 400) {
+                    throw new Error(`Bad Request: ${errorMessage}`);
+                }
+                throw new Error(errorMessage);
+            }
 
-would you like to adjustments based on your specific needs?
-`    
-});
-
-
+            const data = await response.json();
+            const review = data.choices[0].message.content;
+            
+            // Cache the response
+            setCachedResponse(prompt, review);
+            
+            resolve(review);
+            
+            // Add delay between requests to avoid bursts
+            if (requestQueue.length > 0) {
+                await new Promise(r => setTimeout(r, 2000)); // 2 second delay
+            }
+        } catch (error) {
+            reject(error);
+        }
+    }
+    
+    isProcessingQueue = false;
+}
 
 async function generateContent(prompt) {
-    const result = await model.generateContent(prompt);
-    return result.response.text();
+    return new Promise((resolve, reject) => {
+        // Check cache immediately
+        const cached = getCachedResponse(prompt);
+        if (cached) {
+            resolve(cached);
+            return;
+        }
+        
+        // Add to queue
+        requestQueue.push({ prompt, resolve, reject });
+        
+        // Start processing queue
+        processQueue();
+    });
 }
-
 
 module.exports = generateContent

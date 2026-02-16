@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -7,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { authAPI } from "@/lib/api"
 
 export function AuthPage() {
+  const navigate = useNavigate()
   const [loginEmail, setLoginEmail] = useState("")
   const [loginPassword, setLoginPassword] = useState("")
   const [signupName, setSignupName] = useState("")
@@ -33,8 +35,8 @@ export function AuthPage() {
         localStorage.setItem('token', response.token)
       }
       
-      // Redirect or update app state here
-      alert("Login successful!")
+      // Navigate to dashboard after successful login
+      navigate('/dashboard')
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed")
       console.error("Login error:", err)
@@ -67,8 +69,8 @@ export function AuthPage() {
         localStorage.setItem('token', response.token)
       }
       
-      // Redirect or update app state here
-      alert("Signup successful!")
+      // Navigate to dashboard after successful signup
+      navigate('/dashboard')
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signup failed")
       console.error("Signup error:", err)
