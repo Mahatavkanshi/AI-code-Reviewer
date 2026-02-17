@@ -69,22 +69,19 @@ export function AdminDashboard() {
   const [selectedReview, setSelectedReview] = useState<Review | null>(null)
 
   // Theme settings
-  const [accentColor, setAccentColor] = useState(() => {
+  const [accentColor] = useState(() => {
     return localStorage.getItem('accentColor') || '#3b82f6'
   })
-  const [wallpaper, setWallpaper] = useState<string | null>(() => {
+  const [wallpaper] = useState<string | null>(() => {
     return localStorage.getItem('wallpaper')
   })
-  const [wallpaperMode, setWallpaperMode] = useState<'cover' | 'contain' | 'repeat'>(() => {
+  const [wallpaperMode] = useState<'cover' | 'contain' | 'repeat'>(() => {
     return (localStorage.getItem('wallpaperMode') as 'cover' | 'contain' | 'repeat') || 'cover'
   })
-  const [wallpaperBlur, setWallpaperBlur] = useState(() => {
+  const [wallpaperBlur] = useState(() => {
     return Number(localStorage.getItem('wallpaperBlur')) || 0
   })
-  const [wallpaperOpacity, setWallpaperOpacity] = useState(() => {
-    return Number(localStorage.getItem('wallpaperOpacity')) || 0.5
-  })
-  const [gradientTheme, setGradientTheme] = useState(() => {
+  const [gradientTheme] = useState(() => {
     return localStorage.getItem('gradientTheme') || null
   })
 

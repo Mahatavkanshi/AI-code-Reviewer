@@ -1,6 +1,7 @@
 // API configuration and service functions
 
-const API_BASE_URL = 'http://localhost:3000';
+// Use environment variable or fallback to localhost for development
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 interface SignupData {
   username: string;
