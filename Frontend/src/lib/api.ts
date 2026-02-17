@@ -18,8 +18,10 @@ interface AuthResponse {
   token?: string;
   user?: {
     id: string;
-    name: string;
+    username: string;
     email: string;
+    role: string;
+    created_at: string;
   };
 }
 
@@ -233,6 +235,161 @@ export const reviewAPI = {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.message || 'Failed to fetch statistics');
+    }
+
+    return response.json();
+  },
+};
+
+// Admin API calls
+interface User {
+  id: number;
+  username: string;
+  email: string;
+  role: string;
+  created_at: string;
+}
+
+interface AdminReview {
+  id: number;
+  user_id: number;
+  username: string;
+  email: string;
+  code_snippet: string;
+  language: string;
+  ai_review: string;
+  issues_count: number;
+  suggestions_count: number;
+  created_at: string;
+}
+
+interface AdminStats {
+  totalUsers: number;
+  totalReviews: number;
+  todayReviews: number;
+  recentActivity: { date: string; count: number }[];
+}
+
+export const adminAPI = {
+  // Get all users
+  getUsers: async (token: string): Promise<{ success: boolean; users: User[] }> => {
+    const response = await fetch(`${API_BASE_URL}/admin/users`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch users');
+    }
+
+    return response.json();
+  },
+
+  // Get admin stats
+  getStats: async (token: string): Promise<{ success: boolean; stats: AdminStats }> => {
+    const response = await fetch(`${API_BASE_URL}/admin/stats`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch stats');
+    }
+
+    return response.json();
+  },
+
+  // Get all reviews
+  getAllReviews: async (token: string): Promise<{ success: boolean; reviews: AdminReview[] }> => {
+    const response = await fetch(`${API_BASE_URL}/admin/reviews`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch reviews');
+    }
+
+    return response.json();
+  },
+
+  // Create new user
+  createUser: async (data: { username: string; email: string; password: string; role?: string }, token: string): Promise<{ 
+    success: boolean; 
+    message: string;
+    user: User;
+  }> => {
+    const response = await fetch(`${API_BASE_URL}/admin/users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to create user');
+    }
+
+    return response.json();
+  },
+
+  // Delete user
+  deleteUser: async (id: number, token: string): Promise<{ success: boolean; message: string }> => {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to delete user');
+    }
+
+    return response.json();
+  },
+
+  // Change user role
+  changeUserRole: async (id: number, role: string, token: string): Promise<{ success: boolean; message: string }> => {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${id}/role`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ role }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to change role');
+    }
+
+    return response.json();
+  },
+
+  // Reset dashboard
+  resetDashboard: async (token: string): Promise<{ success: boolean; message: string; deletedCount: number }> => {
+    const response = await fetch(`${API_BASE_URL}/admin/reset`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to reset dashboard');
     }
 
     return response.json();

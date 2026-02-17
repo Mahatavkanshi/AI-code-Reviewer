@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { authAPI } from "@/lib/api"
 
 interface AuthPageProps {
-  onLoginSuccess?: () => void;
+  onLoginSuccess?: (role: string) => void;
 }
 
 export function AuthPage({ onLoginSuccess }: AuthPageProps) {
@@ -39,13 +39,18 @@ export function AuthPage({ onLoginSuccess }: AuthPageProps) {
         localStorage.setItem('token', response.token)
       }
       
-      // Notify parent component of successful login
+      // Notify parent component of successful login with role
+      const userRole = response.user?.role || 'user'
       if (onLoginSuccess) {
-        onLoginSuccess()
+        onLoginSuccess(userRole)
       }
       
-      // Navigate to dashboard after successful login
-      navigate('/dashboard')
+      // Navigate based on role
+      if (userRole === 'admin') {
+        navigate('/admin')
+      } else {
+        navigate('/dashboard')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed")
       console.error("Login error:", err)

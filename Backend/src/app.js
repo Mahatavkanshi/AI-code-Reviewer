@@ -4,6 +4,7 @@ const aiRoutes = require('./routes/ai.routes')
 const authRoutes = require('./routes/auth.routes')
 const githubRoutes = require('./routes/github.routes')
 const reviewRoutes = require('./routes/review.routes')
+const adminRoutes = require('./routes/admin.routes')
 
 const app = express()
 
@@ -26,5 +27,8 @@ app.use('/github', githubRoutes)
 
 // Mount Review route
 app.use('/reviews', reviewRoutes)
+
+// Mount Admin route
+app.use('/admin', adminRoutes)
 
 module.exports = app

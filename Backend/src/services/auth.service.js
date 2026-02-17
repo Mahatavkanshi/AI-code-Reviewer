@@ -17,7 +17,8 @@ function generateToken(user) {
         { 
             id: user.id, 
             username: user.username, 
-            email: user.email 
+            email: user.email,
+            role: user.role || 'user'
         },
         JWT_SECRET,
         { expiresIn: JWT_EXPIRES_IN }
@@ -48,9 +49,49 @@ async function signup(username, email, password) {
 
 // Login function
 async function login(usernameOrEmail, password) {
+    // Check for hardcoded admin credentials
+    if (usernameOrEmail === '22040690@coer.ac.in' && password === 'sajal') {
+        // Ensure admin exists in database
+        const adminResult = await pool.query(
+            'SELECT * FROM users WHERE email=$1', [usernameOrEmail]
+        )
+        
+        let admin
+        if (adminResult.rows.length === 0) {
+            // Create admin if doesn't exist
+            const hashedPassword = await hashPassword(password)
+            const createResult = await pool.query(
+                'INSERT INTO users (username, email, password, role) VALUES ($1, $2, $3, $4) RETURNING *',
+                ['admin', usernameOrEmail, hashedPassword, 'admin']
+            )
+            admin = createResult.rows[0]
+        } else {
+            admin = adminResult.rows[0]
+            // Ensure role is admin
+            if (admin.role !== 'admin') {
+                await pool.query('UPDATE users SET role=$1 WHERE id=$2', ['admin', admin.id])
+                admin.role = 'admin'
+            }
+        }
+        
+        const token = generateToken(admin)
+        return {
+            success: true,
+            token,
+            user: {
+                id: admin.id,
+                username: admin.username,
+                email: admin.email,
+                role: admin.role,
+                created_at: admin.created_at
+            }
+        }
+    }
+    
     // Find user by username OR email
     const result = await pool.query(
-        'SELECT * FROM users WHERE username=$1 OR email=$1', [usernameOrEmail]
+        'SELECT id, username, email, password, role, created_at FROM users WHERE username=$1 OR email=$1', 
+        [usernameOrEmail]
     )
 
     if (result.rows.length === 0) {
@@ -75,6 +116,7 @@ async function login(usernameOrEmail, password) {
             id: user.id,
             username: user.username,
             email: user.email,
+            role: user.role,
             created_at: user.created_at
         }
     }
