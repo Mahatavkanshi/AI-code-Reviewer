@@ -18,7 +18,9 @@ import {
   Shield,
   Calendar,
   Moon,
-  Sun
+  Sun,
+  Eye,
+  EyeOff
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -63,6 +65,7 @@ export function AdminDashboard() {
     role: 'user'
   })
   const [activeTab, setActiveTab] = useState<'users' | 'reviews'>('users')
+  const [showNewUserPassword, setShowNewUserPassword] = useState(false)
   const [selectedReview, setSelectedReview] = useState<Review | null>(null)
 
   // Theme settings
@@ -483,12 +486,27 @@ export function AdminDashboard() {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Password</label>
                 <div className="flex gap-2">
-                  <Input
-                    type="text"
-                    value={newUser.password}
-                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                    placeholder="Enter password or generate"
-                  />
+                  <div className="relative flex-1">
+                    <Input
+                      type={showNewUserPassword ? "text" : "password"}
+                      value={newUser.password}
+                      onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                      placeholder="Enter password or generate"
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewUserPassword(!showNewUserPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showNewUserPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                   <Button type="button" variant="outline" onClick={generateRandomPassword}>
                     Generate
                   </Button>

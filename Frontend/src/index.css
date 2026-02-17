@@ -118,22 +118,24 @@
     @apply border-border outline-ring/50;
   }
   html {
-    font-size: 16px;
+    font-size: 18px;
   }
   body {
     @apply bg-background text-foreground;
-    font-size: 16px;
-    line-height: 1.6;
+    font-size: 18px;
+    line-height: 1.7;
   }
   
   /* Increase base text sizes */
-  h1 { @apply text-3xl font-bold; }
-  h2 { @apply text-2xl font-bold; }
-  h3 { @apply text-xl font-semibold; }
-  h4 { @apply text-lg font-semibold; }
+  h1 { @apply text-4xl font-bold; }
+  h2 { @apply text-3xl font-bold; }
+  h3 { @apply text-2xl font-semibold; }
+  h4 { @apply text-xl font-semibold; }
+  h5 { @apply text-lg font-semibold; }
+  h6 { @apply text-base font-semibold; }
   
   p, span, div {
-    font-size: 1rem;
+    font-size: 1.1rem;
   }
   
   /* Ensure text is readable on dark backgrounds */
@@ -156,10 +158,37 @@
   
   /* Large stats numbers */
   .text-stat {
-    font-size: 2.5rem;
+    font-size: 3rem;
     font-weight: 800;
     color: rgba(255, 255, 255, 1) !important;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  }
+  
+  /* Input and textarea font sizes */
+  input, textarea, select {
+    font-size: 1.1rem;
+  }
+  
+  /* Button font sizes */
+  button {
+    font-size: 1.05rem;
+    font-weight: 500;
+  }
+  
+  /* Table text */
+  table {
+    font-size: 1.05rem;
+  }
+  
+  /* Card titles and content */
+  .card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+  
+  /* Navigation and sidebar */
+  nav, aside {
+    font-size: 1.1rem;
   }
 }
 

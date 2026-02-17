@@ -34,7 +34,8 @@ import {
   Monitor,
   Image as ImageIcon,
   Play,
-  BookOpen
+  BookOpen,
+  Download
 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
@@ -860,6 +861,47 @@ export function Dashboard({ onLogout }: DashboardProps) {
     return icons[lang] || '📝'
   }
 
+  const downloadImprovedCode = () => {
+    if (!improvedCode) return
+    
+    const extension = language === 'auto' ? detectLanguage(code) : language
+    const fileExtensions: Record<string, string> = {
+      javascript: 'js',
+      typescript: 'ts',
+      python: 'py',
+      java: 'java',
+      cpp: 'cpp',
+      c: 'c',
+      csharp: 'cs',
+      go: 'go',
+      rust: 'rs',
+      php: 'php',
+      ruby: 'rb',
+      swift: 'swift',
+      kotlin: 'kt',
+      html: 'html',
+      css: 'css',
+      scss: 'scss',
+      sql: 'sql',
+      bash: 'sh',
+      json: 'json',
+      yaml: 'yml',
+      xml: 'xml',
+      markdown: 'md'
+    }
+    
+    const fileExt = fileExtensions[extension] || 'txt'
+    const blob = new Blob([improvedCode], { type: 'text/plain' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `improved_code.${fileExt}`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  }
+
   return (
     <div 
       className="min-h-screen relative"
@@ -1217,10 +1259,16 @@ export function Dashboard({ onLogout }: DashboardProps) {
                           <CardContent>
                             <AIReviewDisplay review={review} />
                             
-                            <div className="flex gap-2 mt-4">
+                            <div className="flex flex-wrap gap-2 mt-4">
                               <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(review)}>
                                 📋 Copy Review
                               </Button>
+                              {improvedCode && (
+                                <Button variant="outline" size="sm" onClick={downloadImprovedCode}>
+                                  <Download className="h-4 w-4 mr-2" />
+                                  Download Improved Code
+                                </Button>
+                              )}
                               <Button variant="outline" size="sm" onClick={() => {setReview(""); setImprovedCode("");}}>
                                 🗑️ Clear
                               </Button>
@@ -1284,10 +1332,16 @@ export function Dashboard({ onLogout }: DashboardProps) {
                   {review && improvedCode && viewMode === "diff" && (
                     <Card className="border-2 bg-slate-900/90 border-slate-700 mt-4">
                       <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <GitCompare className="h-5 w-5" />
-                          Code Diff View
-                        </CardTitle>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2">
+                            <GitCompare className="h-5 w-5" />
+                            Code Diff View
+                          </CardTitle>
+                          <Button variant="outline" size="sm" onClick={downloadImprovedCode}>
+                            <Download className="h-4 w-4 mr-2" />
+                            Download Improved Code
+                          </Button>
+                        </div>
                       </CardHeader>
                       <CardContent>
                         <CodeDiff 
@@ -1446,7 +1500,53 @@ export function Dashboard({ onLogout }: DashboardProps) {
                       {/* Improved Code (if available) */}
                       {selectedReviewDetails.improved_code && (
                         <div>
-                          <h3 className="text-lg font-semibold mb-2 text-slate-200">Improved Code</h3>
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-lg font-semibold text-slate-200">Improved Code</h3>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => {
+                                const extension = selectedReviewDetails.language || 'txt'
+                                const fileExtensions: Record<string, string> = {
+                                  javascript: 'js',
+                                  typescript: 'ts',
+                                  python: 'py',
+                                  java: 'java',
+                                  cpp: 'cpp',
+                                  c: 'c',
+                                  csharp: 'cs',
+                                  go: 'go',
+                                  rust: 'rs',
+                                  php: 'php',
+                                  ruby: 'rb',
+                                  swift: 'swift',
+                                  kotlin: 'kt',
+                                  html: 'html',
+                                  css: 'css',
+                                  scss: 'scss',
+                                  sql: 'sql',
+                                  bash: 'sh',
+                                  json: 'json',
+                                  yaml: 'yml',
+                                  xml: 'xml',
+                                  markdown: 'md'
+                                }
+                                const fileExt = fileExtensions[extension] || 'txt'
+                                const blob = new Blob([selectedReviewDetails.improved_code], { type: 'text/plain' })
+                                const url = window.URL.createObjectURL(blob)
+                                const link = document.createElement('a')
+                                link.href = url
+                                link.download = `improved_code_${selectedReviewDetails.id}.${fileExt}`
+                                document.body.appendChild(link)
+                                link.click()
+                                document.body.removeChild(link)
+                                window.URL.revokeObjectURL(url)
+                              }}
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Download
+                            </Button>
+                          </div>
                           <div className="bg-slate-800 p-4 rounded-lg border border-slate-700 overflow-x-auto">
                             <pre className="text-sm font-mono text-slate-300 whitespace-pre-wrap">
                               <code>{selectedReviewDetails.improved_code}</code>
