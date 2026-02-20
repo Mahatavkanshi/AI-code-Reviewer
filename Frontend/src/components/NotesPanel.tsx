@@ -43,6 +43,9 @@ export function NotesPanel({ reviewId, initialNotes = "", onSave }: NotesPanelPr
       const saved = localStorage.getItem(`notes_${reviewId}`)
       if (saved) {
         setNotes(saved)
+        if (editorRef.current) {
+          editorRef.current.innerHTML = saved
+        }
       }
     }
   }, [reviewId])
@@ -229,18 +232,25 @@ export function NotesPanel({ reviewId, initialNotes = "", onSave }: NotesPanelPr
         </div>
 
         {/* Notes Editor */}
-        <div
-          ref={editorRef}
-          contentEditable
-          className="min-h-[300px] p-6 bg-slate-800 rounded-lg border border-slate-700 text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary overflow-auto text-left"
-          style={{
-            fontFamily: 'system-ui, sans-serif',
-            lineHeight: '1.8',
-            fontSize: '1.1rem'
-          }}
-          onInput={(e) => setNotes(e.currentTarget.innerHTML)}
-          dangerouslySetInnerHTML={{ __html: notes || '<div style="padding: 4px 0;"><span class="text-slate-500 italic">Take your notes here... Select text and use the color picker to highlight important points.</span></div>' }}
-        />
+        <div className="relative">
+          <div
+            ref={editorRef}
+            contentEditable
+            className="min-h-[300px] p-4 bg-slate-800 rounded-lg border border-slate-700 text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary overflow-auto"
+            style={{
+              fontFamily: 'system-ui, sans-serif',
+              lineHeight: '1.6',
+              fontSize: '1rem'
+            }}
+            onInput={(e) => setNotes(e.currentTarget.innerHTML)}
+            suppressContentEditableWarning
+          />
+          {!notes && (
+            <div className="absolute top-4 left-4 pointer-events-none text-slate-500 italic">
+              Take your notes here... Select text and use the color picker to highlight important points.
+            </div>
+          )}
+        </div>
 
         {/* Quick Tips */}
         <div className="text-xs text-slate-500 space-y-1">
