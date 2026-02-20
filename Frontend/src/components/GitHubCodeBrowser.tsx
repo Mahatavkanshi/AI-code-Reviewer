@@ -196,10 +196,13 @@ export function GitHubCodeBrowser({ repo, branch: initialBranch = 'main' }: GitH
       setIsReviewing(true);
       const language = getLanguageFromFile(selectedFile.name);
       
+      // Get auth token from localStorage
+      const token = localStorage.getItem('token');
+      
       const result = await aiAPI.getReview({ 
         code: fileContent, 
         language 
-      });
+      }, token || undefined);
       
       if (result.review && typeof result.review === 'object') {
         setReview(result.review.review || result.review);
@@ -210,7 +213,7 @@ export function GitHubCodeBrowser({ repo, branch: initialBranch = 'main' }: GitH
       }
     } catch (error) {
       console.error('Error reviewing file:', error);
-      setError('Failed to review file');
+      setError(error instanceof Error ? error.message : 'Failed to review file');
     } finally {
       setIsReviewing(false);
     }
