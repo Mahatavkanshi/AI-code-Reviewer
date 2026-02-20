@@ -232,13 +232,14 @@ export function NotesPanel({ reviewId, initialNotes = "", onSave }: NotesPanelPr
         <div
           ref={editorRef}
           contentEditable
-          className="min-h-[300px] p-4 bg-slate-800 rounded-lg border border-slate-700 text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary overflow-auto"
+          className="min-h-[300px] p-6 bg-slate-800 rounded-lg border border-slate-700 text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary overflow-auto text-left"
           style={{
             fontFamily: 'system-ui, sans-serif',
-            lineHeight: '1.6'
+            lineHeight: '1.8',
+            fontSize: '1.1rem'
           }}
           onInput={(e) => setNotes(e.currentTarget.innerHTML)}
-          dangerouslySetInnerHTML={{ __html: notes || '<p class="text-slate-500 italic">Take your notes here... Select text and use the color picker to highlight important points.</p>' }}
+          dangerouslySetInnerHTML={{ __html: notes || '<div style="padding: 4px 0;"><span class="text-slate-500 italic">Take your notes here... Select text and use the color picker to highlight important points.</span></div>' }}
         />
 
         {/* Quick Tips */}
