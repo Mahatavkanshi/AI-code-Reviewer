@@ -205,7 +205,20 @@ No environment variables required for basic setup.
 
 ## Screenshots
 
-*Add your screenshots here*
+### User Dashboard
+![Dashboard](Backend/images/Dashboard.png)
+![Code Comparison](Backend/images/codecomparision.png)
+![Review History](Backend/images/reviewhistoryv.png)
+![Analytics](Backend/images/analytics.png)
+
+### Productivity Features
+![Output](Backend/images/output.png)
+![Notes](Backend/images/notes.png)
+![Local Files](Backend/images/localfiles.png)
+
+### Customization & Integrations
+![Theme Settings](Backend/images/theme.png)
+![GitHub Integration](Backend/images/githubintegration.png)
 
 ## Contributing
 
