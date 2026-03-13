@@ -205,20 +205,54 @@ No environment variables required for basic setup.
 
 ## Screenshots
 
-### User Dashboard
-![Dashboard](Backend/images/Dashboard.png)
-![Code Comparison](Backend/images/codecomparision.png)
-![Review History](Backend/images/reviewhistoryv.png)
-![Analytics](Backend/images/analytics.png)
-
-### Productivity Features
-![Output](Backend/images/output.png)
-![Notes](Backend/images/notes.png)
-![Local Files](Backend/images/localfiles.png)
-
-### Customization & Integrations
-![Theme Settings](Backend/images/theme.png)
-![GitHub Integration](Backend/images/githubintegration.png)
+<table>
+  <tr>
+    <td align="center">
+      <strong>Dashboard</strong><br/>
+      <img src="Backend/images/Dashboard.png" alt="Dashboard" width="430"/>
+    </td>
+    <td align="center">
+      <strong>Code Comparison</strong><br/>
+      <img src="Backend/images/codecomparision.png" alt="Code Comparison" width="430"/>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <strong>Review History</strong><br/>
+      <img src="Backend/images/reviewhistoryv.png" alt="Review History" width="430"/>
+    </td>
+    <td align="center">
+      <strong>Analytics</strong><br/>
+      <img src="Backend/images/analytics.png" alt="Analytics" width="430"/>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <strong>Output</strong><br/>
+      <img src="Backend/images/output.png" alt="Output" width="430"/>
+    </td>
+    <td align="center">
+      <strong>Notes</strong><br/>
+      <img src="Backend/images/notes.png" alt="Notes" width="430"/>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <strong>Local Files</strong><br/>
+      <img src="Backend/images/localfiles.png" alt="Local Files" width="430"/>
+    </td>
+    <td align="center">
+      <strong>Theme Settings</strong><br/>
+      <img src="Backend/images/theme.png" alt="Theme Settings" width="430"/>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2">
+      <strong>GitHub Integration</strong><br/>
+      <img src="Backend/images/githubintegration.png" alt="GitHub Integration" width="430"/>
+    </td>
+  </tr>
+</table>
 
 ## Contributing
 
